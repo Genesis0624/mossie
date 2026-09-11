@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mossie">
+  <rect width="512" height="512" rx="112" fill="#3f5e3a"/>
+  <path d="M256 132c-46 44-92 74-92 132a92 92 0 0 0 184 0c0-58-46-88-92-132z"
+        fill="none" stroke="#eef2e6" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M256 220v150M256 300c-22-10-38-28-44-52M256 336c22-10 38-28 44-52"
+        fill="none" stroke="#eef2e6" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
