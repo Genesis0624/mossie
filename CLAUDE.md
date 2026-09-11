@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Fase 0 completa en local — Next.js 16 + TS estricto + Tailwind v4 con identidad MOSS, shell móvil, Supabase Auth (login/logout), ruta protegida vía proxy.ts, perfil editable con RLS, migración 0001_init.sql, PWA mínima.
-FASE_TÉCNICA_ACTUAL: Fase 0 (cerrada en local; pendiente el despliegue en Vercel)
+ÚLTIMO_INCREMENTO: Fase 0 CERRADA y desplegada — Next.js 16 + TS estricto + Tailwind v4 con identidad MOSS, shell móvil, Supabase Auth (login/logout), ruta protegida vía proxy.ts, perfil editable con RLS, migración 0001_init.sql, PWA mínima. Repo en GitHub (Genesis0624/mossie), producción en https://mossie-two.vercel.app.
+FASE_TÉCNICA_ACTUAL: Fase 0 completada (local + producción). Lista para Fase 1.
 ETAPA_FUNCIONAL_ACTUAL: Etapa 1 (cimientos listos; por iniciar captura/Inbox)
-SIGUIENTE_ACCIÓN: subir a GitHub y desplegar en Vercel; luego iniciar Fase 1 (botón global + y captura rápida de tarea).
+SIGUIENTE_ACCIÓN: iniciar Fase 1 — fundamento de datos de tareas + botón global "+" con captura rápida (título obligatorio) → Inbox.
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, pnpm lint y pnpm build OK; recorrido login → Centro de Mando → perfil (guardar nombre) probado en navegador móvil 375px contra Supabase (proyecto bnxdvrjzkdoqbnfalbws).
+VERIFICADO_CON: pnpm typecheck, lint y build OK; recorrido login → Centro de Mando → perfil (guardar) probado en móvil 375px en local y en producción, contra Supabase (proyecto bnxdvrjzkdoqbnfalbws).
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.
