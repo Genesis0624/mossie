@@ -3,8 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { ROUTE_TO_STATUS } from "./types";
+import { ROUTE_TO_STATUS, type ChecklistItem } from "./types";
 import { PILLAR_SLUGS } from "@/features/pillars/pillars";
+
+function cleanChecklist(input: unknown): ChecklistItem[] {
+  const arr = Array.isArray(input) ? input : [];
+  return arr
+    .map((it) => ({
+      text: String((it as ChecklistItem)?.text ?? "").trim(),
+      done: Boolean((it as ChecklistItem)?.done),
+    }))
+    .filter((it) => it.text.length > 0)
+    .slice(0, 50);
+}
+
+function parseChecklistField(raw: FormDataEntryValue | null): ChecklistItem[] {
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    return cleanChecklist(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
 
 const createSchema = z.object({
   title: z
@@ -156,6 +176,10 @@ export async function processTask(
       ? deadlineRaw.trim()
       : null;
 
+  const isRecurring = formData.get("is_recurring") === "on";
+  const checklist = parseChecklistField(formData.get("checklist"));
+  const attendToday = parsed.data.route === "atender";
+
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, message: "Tu sesión expiró." };
 
@@ -168,6 +192,9 @@ export async function processTask(
       important: parsed.data.important,
       pillar,
       deadline_at,
+      is_recurring: isRecurring,
+      checklist,
+      attend_today: attendToday,
       status: ROUTE_TO_STATUS[parsed.data.route],
     })
     .eq("id", parsed.data.id)
@@ -190,6 +217,23 @@ export async function deleteTask(id: string): Promise<void> {
     .from("tasks")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+}
+
+export async function updateTaskChecklist(
+  id: string,
+  checklist: ChecklistItem[],
+): Promise<void> {
+  const { supabase, user } = await requireUser();
+  if (!user) return;
+
+  await supabase
+    .from("tasks")
+    .update({ checklist: cleanChecklist(checklist) })
+    .eq("id", id)
+    .is("deleted_at", null);
 
   revalidatePath("/");
   revalidatePath("/tareas");
