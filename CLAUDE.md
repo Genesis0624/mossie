@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Fase 1 (corte 1) — tabla maestra `tasks` (migración 0002) con RLS; botón global "+" con hoja de captura rápida (título + interruptor exprés, captura consecutiva); tarea normal → Inbox, exprés → Centro de Mando; Inbox con completar y eliminar (borrado lógico). Base 0: Fase 0 desplegada en https://mossie-two.vercel.app.
-FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (Etapa 1: captura + Inbox listos).
-ETAPA_FUNCIONAL_ACTUAL: Etapa 1 (captura rápida e Inbox funcionando; falta procesamiento y demás bandejas).
-SIGUIENTE_ACCIÓN: procesamiento GTD desde el Inbox — matriz urgente/importante → planificar / delegar / algún día; luego bandejas (Por planificar, Delegadas, En espera, Algún día, Completadas).
+ÚLTIMO_INCREMENTO: Fase 1 — procesamiento GTD. Migración 0003 añade urgent/important a tasks. Desde el Inbox: "Procesar" abre modal (título editable + interruptores Urgente/Importante + recomendación de la matriz de Eisenhower en vivo + 4 rutas) que cambia el estado (atender→planned, planificar→to_plan, delegar→delegated, algun_dia→someday) y saca la tarea del Inbox. Nueva pantalla /tareas con pestañas (Inbox·Por planificar·Delegadas·Algún día·Completadas); la ruta /inbox se unificó en /tareas. Centro de Mando ahora con secciones Hoy (planned) y Tareas exprés. Producción: https://mossie-two.vercel.app.
+FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura + Inbox + procesamiento GTD listos).
+ETAPA_FUNCIONAL_ACTUAL: capturar→procesar funcionando; falta planificación real (execution_date, Hoy/Preparar mañana con agenda), edición de tareas y estado "En espera".
+SIGUIENTE_ACCIÓN: planificación del día — al "Atender ahora"/"Planificar" pedir fecha de ejecución (hoy/mañana) y construir la vista Hoy/Preparar mañana; o edición de tarea + estado En espera.
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, lint y build OK; captura normal→Inbox, exprés→Centro de Mando, completar y persistencia probados en navegador contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migración 0002 aplicada en ese proyecto.
+VERIFICADO_CON: pnpm typecheck, lint y build OK; recorrido Inbox → Procesar → matriz (Urgente+Importante → recomienda Atender ahora, en vivo) → confirmar → tarea a estado planned y visible en Hoy, probado en navegador contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002 y 0003 aplicadas en ese proyecto.
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.

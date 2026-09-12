@@ -2,27 +2,38 @@ import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/features/tasks/task-row";
 import type { Task } from "@/features/tasks/types";
 
+const FIELDS =
+  "id, title, type, is_express, status, urgent, important, completed_at, created_at";
+
 export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: expressData }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user!.id)
-      .maybeSingle(),
-    supabase
-      .from("tasks")
-      .select("id, title, type, is_express, status, completed_at, created_at")
-      .eq("status", "express")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [{ data: profile }, { data: hoyData }, { data: expressData }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user!.id)
+        .maybeSingle(),
+      supabase
+        .from("tasks")
+        .select(FIELDS)
+        .eq("status", "planned")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("tasks")
+        .select(FIELDS)
+        .eq("status", "express")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+    ]);
 
   const nombre = profile?.full_name?.trim();
+  const hoy = (hoyData ?? []) as Task[];
   const express = (expressData ?? []) as Task[];
 
   const fecha = new Intl.DateTimeFormat("es-DO", {
@@ -45,6 +56,22 @@ export default async function HomePage() {
       </p>
 
       <section className="mt-10">
+        <h2 className="text-ink text-base font-medium">Hoy</h2>
+        {hoy.length === 0 ? (
+          <p className="text-ink-mute mt-2 text-sm">
+            Nada agendado para hoy. Procesa tu Inbox y lo que sea para atender
+            ahora aparecerá aquí.
+          </p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {hoy.map((task) => (
+              <TaskRow key={task.id} task={task} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-8">
         <h2 className="text-ink text-base font-medium">Tareas exprés</h2>
         {express.length === 0 ? (
           <p className="text-ink-mute mt-2 text-sm">

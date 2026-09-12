@@ -2,11 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { completeTask, deleteTask } from "./actions";
+import { ProcessSheet } from "./process-sheet";
 import type { Task } from "./types";
 
-export function TaskRow({ task }: { task: Task }) {
+export function TaskRow({
+  task,
+  canProcess = false,
+}: {
+  task: Task;
+  canProcess?: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+  const [processOpen, setProcessOpen] = useState(false);
 
   const capturada = new Intl.DateTimeFormat("es-DO", {
     day: "numeric",
@@ -60,6 +68,17 @@ export function TaskRow({ task }: { task: Task }) {
         </p>
       </div>
 
+      {canProcess ? (
+        <button
+          type="button"
+          onClick={() => setProcessOpen(true)}
+          disabled={pending}
+          className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+        >
+          Procesar
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={onDelete}
@@ -80,6 +99,14 @@ export function TaskRow({ task }: { task: Task }) {
           <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
         </svg>
       </button>
+
+      {canProcess ? (
+        <ProcessSheet
+          task={task}
+          open={processOpen}
+          onClose={() => setProcessOpen(false)}
+        />
+      ) : null}
     </li>
   );
 }

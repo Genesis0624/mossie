@@ -28,8 +28,8 @@ const items: NavItem[] = [
     ),
   },
   {
-    href: "/inbox",
-    label: "Inbox",
+    href: "/tareas",
+    label: "Tareas",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" {...stroke}>
         <path d="M4 13h4l1.5 3h5L16 13h4" />
