@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Fase 0 CERRADA y desplegada — Next.js 16 + TS estricto + Tailwind v4 con identidad MOSS, shell móvil, Supabase Auth (login/logout), ruta protegida vía proxy.ts, perfil editable con RLS, migración 0001_init.sql, PWA mínima. Repo en GitHub (Genesis0624/mossie), producción en https://mossie-two.vercel.app.
-FASE_TÉCNICA_ACTUAL: Fase 0 completada (local + producción). Lista para Fase 1.
-ETAPA_FUNCIONAL_ACTUAL: Etapa 1 (cimientos listos; por iniciar captura/Inbox)
-SIGUIENTE_ACCIÓN: iniciar Fase 1 — fundamento de datos de tareas + botón global "+" con captura rápida (título obligatorio) → Inbox.
+ÚLTIMO_INCREMENTO: Fase 1 (corte 1) — tabla maestra `tasks` (migración 0002) con RLS; botón global "+" con hoja de captura rápida (título + interruptor exprés, captura consecutiva); tarea normal → Inbox, exprés → Centro de Mando; Inbox con completar y eliminar (borrado lógico). Base 0: Fase 0 desplegada en https://mossie-two.vercel.app.
+FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (Etapa 1: captura + Inbox listos).
+ETAPA_FUNCIONAL_ACTUAL: Etapa 1 (captura rápida e Inbox funcionando; falta procesamiento y demás bandejas).
+SIGUIENTE_ACCIÓN: procesamiento GTD desde el Inbox — matriz urgente/importante → planificar / delegar / algún día; luego bandejas (Por planificar, Delegadas, En espera, Algún día, Completadas).
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, lint y build OK; recorrido login → Centro de Mando → perfil (guardar) probado en móvil 375px en local y en producción, contra Supabase (proyecto bnxdvrjzkdoqbnfalbws).
+VERIFICADO_CON: pnpm typecheck, lint y build OK; captura normal→Inbox, exprés→Centro de Mando, completar y persistencia probados en navegador contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migración 0002 aplicada en ese proyecto.
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.
