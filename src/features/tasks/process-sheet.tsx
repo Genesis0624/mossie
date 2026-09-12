@@ -19,10 +19,14 @@ export function ProcessSheet({
   task,
   open,
   onClose,
+  onProcessed,
+  progress,
 }: {
   task: Task;
   open: boolean;
   onClose: () => void;
+  onProcessed?: () => void;
+  progress?: string;
 }) {
   const [state, formAction, pending] = useActionState(
     processTask,
@@ -56,8 +60,8 @@ export function ProcessSheet({
   const effectiveRoute = touched ? route : recommended;
 
   useEffect(() => {
-    if (state.ok) onClose();
-  }, [state, onClose]);
+    if (state.ok) (onProcessed ?? onClose)();
+  }, [state, onProcessed, onClose]);
 
   if (!open) return null;
 
@@ -77,7 +81,12 @@ export function ProcessSheet({
 
       <div className="bg-paper relative mx-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[var(--radius-xl)] p-6 pb-8 shadow-[var(--shadow-lg)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-editorial text-moss-800 text-2xl">Procesar</h2>
+          <h2 className="font-editorial text-moss-800 text-2xl">
+            Procesar
+            {progress ? (
+              <span className="text-ink-mute ml-2 text-sm">{progress}</span>
+            ) : null}
+          </h2>
           <button
             type="button"
             aria-label="Cerrar"
@@ -336,7 +345,11 @@ export function ProcessSheet({
             disabled={pending}
             className="bg-moss-700 text-paper hover:bg-moss-800 min-h-[48px] rounded-full px-6 text-base font-medium transition-colors disabled:opacity-60"
           >
-            {pending ? "Guardando…" : "Confirmar decisión"}
+            {pending
+              ? "Guardando…"
+              : onProcessed
+                ? "Guardar y siguiente"
+                : "Confirmar decisión"}
           </button>
         </form>
       </div>

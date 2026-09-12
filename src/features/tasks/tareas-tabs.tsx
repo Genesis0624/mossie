@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TaskRow } from "./task-row";
+import { ProcessSheet } from "./process-sheet";
 import type { Task, TaskStatus } from "./types";
 import { PILLARS } from "@/features/pillars/pillars";
 
@@ -57,6 +58,9 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
   const [hoyOnly, setHoyOnly] = useState(false);
   const [withDeadline, setWithDeadline] = useState(false);
   const [pillarFilter, setPillarFilter] = useState("");
+  // Procesamiento en orden: cola de ids capturada al iniciar.
+  const [queue, setQueue] = useState<string[] | null>(null);
+  const [qIndex, setQIndex] = useState(0);
 
   const tab = TABS.find((t) => t.key === active)!;
   const isInbox = tab.key === "inbox";
@@ -83,6 +87,23 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
 
   const countFor = (status: TaskStatus) =>
     tasks.filter((t) => t.status === status).length;
+
+  const tasksById = new Map(tasks.map((t) => [t.id, t]));
+  const seqTask =
+    queue && qIndex < queue.length ? tasksById.get(queue[qIndex]) : undefined;
+
+  const startSequential = () => {
+    setQueue(list.map((t) => t.id));
+    setQIndex(0);
+  };
+  const stopSequential = () => {
+    setQueue(null);
+    setQIndex(0);
+  };
+  const advance = () => {
+    if (!queue || qIndex + 1 >= queue.length) stopSequential();
+    else setQIndex(qIndex + 1);
+  };
 
   return (
     <>
@@ -153,6 +174,28 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
         </div>
       ) : null}
 
+      {isInbox && list.length > 0 ? (
+        <button
+          type="button"
+          onClick={startSequential}
+          className="bg-moss-700 text-paper hover:bg-moss-800 mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+          Procesar en orden ({list.length})
+        </button>
+      ) : null}
+
       {list.length === 0 ? (
         <p className="text-ink-mute mt-10 text-center text-sm">
           {isInbox && hoyOnly ? "Nada capturado hoy." : tab.empty}
@@ -164,6 +207,17 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
           ))}
         </ul>
       )}
+
+      {seqTask ? (
+        <ProcessSheet
+          key={seqTask.id}
+          task={seqTask}
+          open
+          onClose={stopSequential}
+          onProcessed={advance}
+          progress={queue ? `${qIndex + 1} de ${queue.length}` : undefined}
+        />
+      ) : null}
     </>
   );
 }
