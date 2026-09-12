@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Botón "+" ampliado a 4 tipos (Tarea, Evento, Gasto, Idea) con tablas maestras (migración 0004: events, expenses, ideas — cada una con RLS). Evento con fecha→events (calendario); sin fecha→tarea al Inbox ("Definir fecha del evento: …"); Gasto→expenses (persistencia provisional para Finanzas); Idea→ideas (Inbox de ideas propio). La Tarea suma "Guardar y cerrar". Solo CAPTURA por ahora: los módulos de vista (Calendario, Finanzas, Inbox de ideas) están pendientes. Antes: captura+Inbox+procesamiento GTD (matriz Eisenhower) y /tareas con pestañas. Producción: https://mossie-two.vercel.app.
+ÚLTIMO_INCREMENTO: Mejoras al Inbox de tareas — edición inline del título (acción updateTaskTitle), menú secundario "⋮" (Editar/Eliminar) en cada tarjeta, y filtros del Inbox (orden Más antiguas/Más recientes + Capturadas hoy). Pendientes por falta de campo: filtro por Pilar y por fecha límite. Antes: botón "+" con 4 tipos (Tarea/Evento/Gasto/Idea) y tablas maestras (0004: events/expenses/ideas); captura+Inbox+procesamiento GTD (matriz Eisenhower); /tareas con pestañas. Solo CAPTURA en Evento/Gasto/Idea (módulos de vista Calendario/Finanzas/Inbox-ideas pendientes). Producción: https://mossie-two.vercel.app.
 FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura de 4 tipos + Inbox + procesamiento GTD listos).
 ETAPA_FUNCIONAL_ACTUAL: capturar(4 tipos)→procesar funcionando; faltan vistas de Ideas/Calendario/Finanzas, planificación real (execution_date, Hoy/Preparar mañana), edición de tareas y estado "En espera".
 SIGUIENTE_ACCIÓN: Inbox de ideas (ver + transformar en tarea/proyecto/etc.), o Calendario (ver eventos), o planificación del día; a elección de la usuaria.
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, lint y build OK; los 4 tipos de captura probados en navegador (evento con fecha→events y sin fecha→Inbox, gasto→expenses, idea→ideas, tarea→Inbox/exprés) contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002, 0003 y 0004 aplicadas en ese proyecto.
+VERIFICADO_CON: pnpm typecheck, lint y build OK; edición inline de título, menú Editar/Eliminar y filtros (orden + Capturadas hoy) probados en navegador; antes, los 4 tipos de captura contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002, 0003 y 0004 aplicadas. Sin migración nueva en este incremento (solo UI + acción updateTaskTitle).
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.

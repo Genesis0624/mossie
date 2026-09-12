@@ -44,12 +44,33 @@ const TABS: Tab[] = [
   },
 ];
 
+// Fecha yyyy-mm-dd en zona Santo Domingo, para el filtro "Hoy".
+const sdDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santo_Domingo",
+  }).format(new Date(iso));
+
 export function TareasTabs({ tasks }: { tasks: Task[] }) {
   const [active, setActive] = useState("inbox");
+  const [order, setOrder] = useState<"asc" | "desc">("asc");
+  const [hoyOnly, setHoyOnly] = useState(false);
+
   const tab = TABS.find((t) => t.key === active)!;
+  const isInbox = tab.key === "inbox";
 
   let list = tasks.filter((t) => t.status === tab.status);
-  if (tab.key === "completed") {
+
+  if (isInbox) {
+    if (hoyOnly) {
+      const today = sdDate(new Date().toISOString());
+      list = list.filter((t) => sdDate(t.created_at) === today);
+    }
+    list = [...list].sort((a, b) =>
+      order === "asc"
+        ? a.created_at.localeCompare(b.created_at)
+        : b.created_at.localeCompare(a.created_at),
+    );
+  } else if (tab.key === "completed") {
     list = [...list].sort((a, b) =>
       (b.completed_at ?? "").localeCompare(a.completed_at ?? ""),
     );
@@ -90,19 +111,58 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
         </div>
       </div>
 
+      {isInbox ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <FilterChip active={order === "asc"} onClick={() => setOrder("asc")}>
+            Más antiguas
+          </FilterChip>
+          <FilterChip
+            active={order === "desc"}
+            onClick={() => setOrder("desc")}
+          >
+            Más recientes
+          </FilterChip>
+          <span className="bg-line-2 mx-1 h-4 w-px" />
+          <FilterChip active={hoyOnly} onClick={() => setHoyOnly((v) => !v)}>
+            Capturadas hoy
+          </FilterChip>
+        </div>
+      ) : null}
+
       {list.length === 0 ? (
-        <p className="text-ink-mute mt-10 text-center text-sm">{tab.empty}</p>
+        <p className="text-ink-mute mt-10 text-center text-sm">
+          {isInbox && hoyOnly ? "Nada capturado hoy." : tab.empty}
+        </p>
       ) : (
         <ul className="mt-6 flex flex-col gap-3">
           {list.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              canProcess={tab.key === "inbox"}
-            />
+            <TaskRow key={task.id} task={task} canProcess={isInbox} />
           ))}
         </ul>
       )}
     </>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+        active ? "bg-moss-100 text-moss-800" : "text-ink-mute hover:bg-paper-2"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

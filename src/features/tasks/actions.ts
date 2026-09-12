@@ -92,6 +92,26 @@ export async function completeTask(id: string): Promise<void> {
   revalidatePath("/tareas");
 }
 
+export async function updateTaskTitle(
+  id: string,
+  title: string,
+): Promise<void> {
+  const clean = title.trim();
+  if (clean.length < 1 || clean.length > 500) return;
+
+  const { supabase, user } = await requireUser();
+  if (!user) return;
+
+  await supabase
+    .from("tasks")
+    .update({ title: clean })
+    .eq("id", id)
+    .is("deleted_at", null);
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+}
+
 const processSchema = z.object({
   id: z.string().uuid(),
   title: z.string().trim().min(1, "El título no puede quedar vacío.").max(500),
