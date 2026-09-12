@@ -11,16 +11,18 @@ import { ProcessSheet } from "./process-sheet";
 import { PlanSheet } from "./plan-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
 import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
-import type { ChecklistItem, Task } from "./types";
+import { TASK_STATUS_LABEL, type ChecklistItem, type Task } from "./types";
 
 export function TaskRow({
   task,
   canProcess = false,
   canPlan = false,
+  showStatus = false,
 }: {
   task: Task;
   canProcess?: boolean;
   canPlan?: boolean;
+  showStatus?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
@@ -60,7 +62,12 @@ export function TaskRow({
     : null;
   const today = sdDateString();
   const bucket = planBucket(task.execution_date, today, addDays(today, 1));
-  const isOverdue = bucket === "vencida";
+  const isOverdue = task.status === "planned" && bucket === "vencida";
+  const isClosed = task.status === "completed" || task.status === "canceled";
+  const statusLabel =
+    task.status === "planned"
+      ? BUCKET_LABEL[bucket]
+      : TASK_STATUS_LABEL[task.status];
 
   function onComplete() {
     setDone(true);
@@ -136,26 +143,46 @@ export function TaskRow({
       }`}
     >
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onComplete}
-          disabled={pending}
-          aria-label="Completar"
-          className="border-line-2 hover:border-moss-500 hover:text-moss-600 flex size-6 shrink-0 items-center justify-center rounded-full border text-transparent transition-colors"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {isClosed ? (
+          <span
+            aria-hidden="true"
+            className="border-moss-300 bg-moss-50 text-moss-700 flex size-6 shrink-0 items-center justify-center rounded-full border"
           >
-            <path d="M5 12l5 5L20 7" />
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onComplete}
+            disabled={pending}
+            aria-label="Completar"
+            className="border-line-2 hover:border-moss-500 hover:text-moss-600 flex size-6 shrink-0 items-center justify-center rounded-full border text-transparent transition-colors"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+          </button>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -198,7 +225,7 @@ export function TaskRow({
               Atender hoy
             </span>
           ) : null}
-          {execDate ? (
+          {showStatus || execDate ? (
             <span
               className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
                 isOverdue
@@ -214,7 +241,8 @@ export function TaskRow({
                     : "var(--color-moss-600)",
                 }}
               />
-              {BUCKET_LABEL[bucket]} · {execDate}
+              {statusLabel}
+              {execDate ? ` · ${execDate}` : ""}
             </span>
           ) : null}
         </div>

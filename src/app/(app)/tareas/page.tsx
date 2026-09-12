@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Tareas" };
 export default async function TareasPage() {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
     .select(TASK_SELECT)
     .is("deleted_at", null)
@@ -19,7 +19,14 @@ export default async function TareasPage() {
   return (
     <main className="px-6 pt-12">
       <h1 className="font-editorial text-moss-800 text-3xl">Tareas</h1>
-      <TareasTabs tasks={tasks} />
+      {error ? (
+        <p className="bg-clay-50 text-ink-soft mt-6 rounded-lg px-4 py-3 text-sm">
+          No pudimos cargar tus tareas. Recarga la página para intentarlo de
+          nuevo.
+        </p>
+      ) : (
+        <TareasTabs tasks={tasks} />
+      )}
     </main>
   );
 }

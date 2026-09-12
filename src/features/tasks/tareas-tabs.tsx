@@ -9,11 +9,17 @@ import { PILLARS } from "@/features/pillars/pillars";
 type Tab = {
   key: string;
   label: string;
-  status: TaskStatus;
+  status: TaskStatus | null;
   empty: string;
 };
 
 const TABS: Tab[] = [
+  {
+    key: "all",
+    label: "Todas",
+    status: null,
+    empty: "Aún no tienes tareas. Captura la primera con el botón +.",
+  },
   {
     key: "inbox",
     label: "Inbox",
@@ -59,7 +65,7 @@ const sdDate = (iso: string) =>
   }).format(new Date(iso));
 
 export function TareasTabs({ tasks }: { tasks: Task[] }) {
-  const [active, setActive] = useState("inbox");
+  const [active, setActive] = useState("all");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [hoyOnly, setHoyOnly] = useState(false);
   const [withDeadline, setWithDeadline] = useState(false);
@@ -69,12 +75,15 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
   const [qIndex, setQIndex] = useState(0);
 
   const tab = TABS.find((t) => t.key === active)!;
+  const isAll = tab.key === "all";
   const isInbox = tab.key === "inbox";
   const canPlan = tab.key === "to_plan" || tab.key === "planned";
 
-  let list = tasks.filter((t) => t.status === tab.status);
+  let list = tab.status ? tasks.filter((t) => t.status === tab.status) : tasks;
 
-  if (isInbox) {
+  if (isAll) {
+    list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  } else if (isInbox) {
     if (hoyOnly) {
       const today = sdDate(new Date().toISOString());
       list = list.filter((t) => sdDate(t.created_at) === today);
@@ -96,8 +105,8 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
     );
   }
 
-  const countFor = (status: TaskStatus) =>
-    tasks.filter((t) => t.status === status).length;
+  const countFor = (status: TaskStatus | null) =>
+    status ? tasks.filter((t) => t.status === status).length : tasks.length;
 
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
   const seqTask =
@@ -217,8 +226,13 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
             <TaskRow
               key={task.id}
               task={task}
-              canProcess={isInbox}
-              canPlan={canPlan}
+              canProcess={isInbox || (isAll && task.status === "inbox")}
+              canPlan={
+                canPlan ||
+                (isAll &&
+                  (task.status === "to_plan" || task.status === "planned"))
+              }
+              showStatus={isAll}
             />
           ))}
         </ul>

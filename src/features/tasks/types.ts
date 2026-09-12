@@ -10,6 +10,19 @@ export type TaskStatus =
   | "completed"
   | "canceled";
 
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  inbox: "Inbox",
+  express: "Exprés",
+  to_plan: "Por planificar",
+  planned: "Planificada",
+  in_progress: "En progreso",
+  waiting: "En espera",
+  someday: "Algún día",
+  delegated: "Delegada",
+  completed: "Completada",
+  canceled: "Cancelada",
+};
+
 export type TaskType = "operativa" | "estrategica";
 
 export type ChecklistItem = { text: string; done: boolean };
