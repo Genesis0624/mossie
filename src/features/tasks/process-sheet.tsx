@@ -9,6 +9,7 @@ import {
   type Route,
   type Task,
 } from "./types";
+import { PILLARS } from "@/features/pillars/pillars";
 
 const initialState: ProcessState = { ok: false, message: null };
 const ROUTES: Route[] = ["atender", "planificar", "delegar", "algun_dia"];
@@ -27,6 +28,10 @@ export function ProcessSheet({
     initialState,
   );
   const [title, setTitle] = useState(task.title);
+  const [taskType, setTaskType] = useState<"operativa" | "estrategica">(
+    task.type ?? "operativa",
+  );
+  const [pillar, setPillar] = useState<string | null>(task.pillar ?? null);
   const [urgent, setUrgent] = useState(task.urgent ?? false);
   const [important, setImportant] = useState(task.important ?? false);
   const recommended = recommendRoute(urgent, important);
@@ -80,6 +85,8 @@ export function ProcessSheet({
 
         <form action={formAction} className="flex flex-col gap-5">
           <input type="hidden" name="id" value={task.id} />
+          <input type="hidden" name="type" value={taskType} />
+          <input type="hidden" name="pillar" value={pillar ?? ""} />
           <input type="hidden" name="urgent" value={urgent ? "on" : ""} />
           <input type="hidden" name="important" value={important ? "on" : ""} />
           <input type="hidden" name="route" value={effectiveRoute} />
@@ -93,6 +100,73 @@ export function ProcessSheet({
               onChange={(e) => setTitle(e.target.value)}
               required
               maxLength={500}
+              className="border-line-2 bg-paper-2 text-ink focus:border-moss-500 min-h-[48px] rounded-md border px-4 text-base outline-none"
+            />
+          </label>
+
+          <div>
+            <p className="text-ink-soft text-sm">Tipo de tarea</p>
+            <div className="mt-2 flex gap-2">
+              {(["operativa", "estrategica"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTaskType(t)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    taskType === t
+                      ? "border-moss-500 bg-moss-50 text-moss-800"
+                      : "border-line-2 bg-paper-2 text-ink-soft"
+                  }`}
+                >
+                  {t === "operativa" ? "Operativa" : "Estratégica"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-ink-soft text-sm">Pilar</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setPillar(null)}
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  pillar === null
+                    ? "border-moss-500 bg-moss-50 text-moss-800"
+                    : "border-line-2 text-ink-soft"
+                }`}
+              >
+                Sin pilar
+              </button>
+              {PILLARS.map((p) => (
+                <button
+                  key={p.slug}
+                  type="button"
+                  onClick={() => setPillar(p.slug)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    pillar === p.slug
+                      ? "border-moss-500 bg-moss-50 text-moss-800"
+                      : "border-line-2 text-ink-soft"
+                  }`}
+                >
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ background: p.color }}
+                  />
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-soft text-sm">
+              Fecha límite (opcional)
+            </span>
+            <input
+              type="date"
+              name="deadline_at"
+              defaultValue={task.deadline_at ?? ""}
               className="border-line-2 bg-paper-2 text-ink focus:border-moss-500 min-h-[48px] rounded-md border px-4 text-base outline-none"
             />
           </label>

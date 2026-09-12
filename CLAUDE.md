@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Mejoras al Inbox de tareas — edición inline del título (acción updateTaskTitle), menú secundario "⋮" (Editar/Eliminar) en cada tarjeta, y filtros del Inbox (orden Más antiguas/Más recientes + Capturadas hoy). Pendientes por falta de campo: filtro por Pilar y por fecha límite. Antes: botón "+" con 4 tipos (Tarea/Evento/Gasto/Idea) y tablas maestras (0004: events/expenses/ideas); captura+Inbox+procesamiento GTD (matriz Eisenhower); /tareas con pestañas. Solo CAPTURA en Evento/Gasto/Idea (módulos de vista Calendario/Finanzas/Inbox-ideas pendientes). Producción: https://mossie-two.vercel.app.
-FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura de 4 tipos + Inbox + procesamiento GTD listos).
-ETAPA_FUNCIONAL_ACTUAL: capturar(4 tipos)→procesar funcionando; faltan vistas de Ideas/Calendario/Finanzas, planificación real (execution_date, Hoy/Preparar mañana), edición de tareas y estado "En espera".
-SIGUIENTE_ACCIÓN: Inbox de ideas (ver + transformar en tarea/proyecto/etc.), o Calendario (ver eventos), o planificación del día; a elección de la usuaria.
+ÚLTIMO_INCREMENTO: Procesamiento enriquecido — Tipo de tarea (operativa/estratégica), Pilar y Fecha límite. Migración 0005 añade tasks.deadline_at (date) y tasks.pillar (text/slug). PILARES por ahora como LISTA FIJA en código (src/features/pillars/pillars.ts: 10 pilares Doc 24 con color), NO en tabla; se guarda el slug en tasks.pillar (promover a tabla si hace falta editarlos). Modal Procesar: Tipo (segmentado) + Pilar (chips con punto de color) + Fecha límite; la tarjeta muestra el punto del pilar y "vence <fecha>". Filtros del Inbox completos: orden, Capturadas hoy, Con fecha límite y por Pilar. Antes: 4 tipos de captura + tablas 0004 (events/expenses/ideas); matriz Eisenhower; /tareas con pestañas. Producción: https://mossie-two.vercel.app.
+FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura 4 tipos + Inbox + procesamiento GTD con Tipo/Pilar/Fecha límite).
+ETAPA_FUNCIONAL_ACTUAL: capturar→procesar (con tipo, pilar, fecha límite) funcionando; faltan rutas completas (Atender ahora/Delegar/En espera), varios pasos, recurrencia; y vistas Ideas/Calendario/Finanzas.
+SIGUIENTE_ACCIÓN: seguir el procesamiento — Atender ahora (planificación rápida) / Delegar (estado+pantalla) / En espera; luego varios pasos (checklist) y recurrencia.
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, lint y build OK; edición inline de título, menú Editar/Eliminar y filtros (orden + Capturadas hoy) probados en navegador; antes, los 4 tipos de captura contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002, 0003 y 0004 aplicadas. Sin migración nueva en este incremento (solo UI + acción updateTaskTitle).
+VERIFICADO_CON: pnpm typecheck, lint y build OK; procesé una tarea con Tipo, Pilar=Hogar y fecha límite → quedó en Por planificar mostrando el punto de color y "vence 25 sept"; filtros del Inbox (pilar + con fecha límite) renderizando. Contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002–0005 aplicadas.
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.

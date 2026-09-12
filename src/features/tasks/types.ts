@@ -10,17 +10,25 @@ export type TaskStatus =
   | "completed"
   | "canceled";
 
+export type TaskType = "operativa" | "estrategica";
+
 export type Task = {
   id: string;
   title: string;
-  type: "operativa" | "estrategica";
+  type: TaskType;
   is_express: boolean;
   status: TaskStatus;
   urgent: boolean | null;
   important: boolean | null;
+  pillar: string | null;
+  deadline_at: string | null;
   completed_at: string | null;
   created_at: string;
 };
+
+// Campos que se leen de tasks en las vistas (mantener en un solo lugar).
+export const TASK_SELECT =
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, completed_at, created_at";
 
 // Rutas de la matriz de Eisenhower (Doc GTD §11.4-11.5).
 export type Route = "atender" | "planificar" | "delegar" | "algun_dia";

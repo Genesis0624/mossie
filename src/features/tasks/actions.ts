@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ROUTE_TO_STATUS } from "./types";
+import { PILLAR_SLUGS } from "@/features/pillars/pillars";
 
 const createSchema = z.object({
   title: z
@@ -115,6 +116,7 @@ export async function updateTaskTitle(
 const processSchema = z.object({
   id: z.string().uuid(),
   title: z.string().trim().min(1, "El título no puede quedar vacío.").max(500),
+  type: z.enum(["operativa", "estrategica"]).default("operativa"),
   urgent: z.boolean(),
   important: z.boolean(),
   route: z.enum(["atender", "planificar", "delegar", "algun_dia"]),
@@ -129,6 +131,7 @@ export async function processTask(
   const parsed = processSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
+    type: formData.get("type") ?? "operativa",
     urgent: formData.get("urgent") === "on",
     important: formData.get("important") === "on",
     route: formData.get("route"),
@@ -141,6 +144,18 @@ export async function processTask(
     };
   }
 
+  // Pilar (slug de la lista fija) y fecha límite: opcionales.
+  const pillarRaw = formData.get("pillar");
+  const pillar =
+    typeof pillarRaw === "string" && PILLAR_SLUGS.includes(pillarRaw)
+      ? pillarRaw
+      : null;
+  const deadlineRaw = formData.get("deadline_at");
+  const deadline_at =
+    typeof deadlineRaw === "string" && deadlineRaw.trim()
+      ? deadlineRaw.trim()
+      : null;
+
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, message: "Tu sesión expiró." };
 
@@ -148,8 +163,11 @@ export async function processTask(
     .from("tasks")
     .update({
       title: parsed.data.title,
+      type: parsed.data.type,
       urgent: parsed.data.urgent,
       important: parsed.data.important,
+      pillar,
+      deadline_at,
       status: ROUTE_TO_STATUS[parsed.data.route],
     })
     .eq("id", parsed.data.id)

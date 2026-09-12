@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TaskRow } from "./task-row";
 import type { Task, TaskStatus } from "./types";
+import { PILLARS } from "@/features/pillars/pillars";
 
 type Tab = {
   key: string;
@@ -54,6 +55,8 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
   const [active, setActive] = useState("inbox");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [hoyOnly, setHoyOnly] = useState(false);
+  const [withDeadline, setWithDeadline] = useState(false);
+  const [pillarFilter, setPillarFilter] = useState("");
 
   const tab = TABS.find((t) => t.key === active)!;
   const isInbox = tab.key === "inbox";
@@ -65,6 +68,8 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
       const today = sdDate(new Date().toISOString());
       list = list.filter((t) => sdDate(t.created_at) === today);
     }
+    if (withDeadline) list = list.filter((t) => t.deadline_at);
+    if (pillarFilter) list = list.filter((t) => t.pillar === pillarFilter);
     list = [...list].sort((a, b) =>
       order === "asc"
         ? a.created_at.localeCompare(b.created_at)
@@ -126,6 +131,25 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
           <FilterChip active={hoyOnly} onClick={() => setHoyOnly((v) => !v)}>
             Capturadas hoy
           </FilterChip>
+          <FilterChip
+            active={withDeadline}
+            onClick={() => setWithDeadline((v) => !v)}
+          >
+            Con fecha límite
+          </FilterChip>
+          <select
+            value={pillarFilter}
+            onChange={(e) => setPillarFilter(e.target.value)}
+            aria-label="Filtrar por pilar"
+            className="border-line-2 bg-paper-2 text-ink-soft rounded-full border px-3 py-1.5 text-xs"
+          >
+            <option value="">Todos los pilares</option>
+            {PILLARS.map((p) => (
+              <option key={p.slug} value={p.slug}>
+                {p.name}
+              </option>
+            ))}
+          </select>
         </div>
       ) : null}
 

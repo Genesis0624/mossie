@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { completeTask, deleteTask, updateTaskTitle } from "./actions";
 import { ProcessSheet } from "./process-sheet";
+import { pillarBySlug } from "@/features/pillars/pillars";
 import type { Task } from "./types";
 
 export function TaskRow({
@@ -26,6 +27,14 @@ export function TaskRow({
     minute: "2-digit",
     timeZone: "America/Santo_Domingo",
   }).format(new Date(task.created_at));
+
+  const pillar = pillarBySlug(task.pillar);
+  const deadline = task.deadline_at
+    ? new Intl.DateTimeFormat("es-DO", {
+        day: "numeric",
+        month: "short",
+      }).format(new Date(task.deadline_at + "T12:00:00"))
+    : null;
 
   function onComplete() {
     setDone(true);
@@ -114,9 +123,19 @@ export function TaskRow({
       </button>
 
       <div className="min-w-0 flex-1">
-        <p className="text-ink truncate text-base">{task.title}</p>
+        <div className="flex items-center gap-2">
+          {pillar ? (
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ background: pillar.color }}
+              title={pillar.name}
+            />
+          ) : null}
+          <p className="text-ink truncate text-base">{task.title}</p>
+        </div>
         <p suppressHydrationWarning className="text-ink-mute text-xs">
           {capturada}
+          {deadline ? ` · vence ${deadline}` : ""}
         </p>
       </div>
 

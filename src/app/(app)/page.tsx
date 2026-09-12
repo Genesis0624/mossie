@@ -1,9 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/features/tasks/task-row";
-import type { Task } from "@/features/tasks/types";
+import { TASK_SELECT, type Task } from "@/features/tasks/types";
 
-const FIELDS =
-  "id, title, type, is_express, status, urgent, important, completed_at, created_at";
+const FIELDS = TASK_SELECT;
 
 export default async function HomePage() {
   const supabase = await createClient();
