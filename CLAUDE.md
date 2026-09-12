@@ -26,12 +26,12 @@ La usuaria tiene múltiples roles y turnos variables. MOSS debe ser simple, sere
 Editar solo este bloque cuando cambie el avance:
 
 ```text
-ÚLTIMO_INCREMENTO: Fase 1 — procesamiento GTD. Migración 0003 añade urgent/important a tasks. Desde el Inbox: "Procesar" abre modal (título editable + interruptores Urgente/Importante + recomendación de la matriz de Eisenhower en vivo + 4 rutas) que cambia el estado (atender→planned, planificar→to_plan, delegar→delegated, algun_dia→someday) y saca la tarea del Inbox. Nueva pantalla /tareas con pestañas (Inbox·Por planificar·Delegadas·Algún día·Completadas); la ruta /inbox se unificó en /tareas. Centro de Mando ahora con secciones Hoy (planned) y Tareas exprés. Producción: https://mossie-two.vercel.app.
-FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura + Inbox + procesamiento GTD listos).
-ETAPA_FUNCIONAL_ACTUAL: capturar→procesar funcionando; falta planificación real (execution_date, Hoy/Preparar mañana con agenda), edición de tareas y estado "En espera".
-SIGUIENTE_ACCIÓN: planificación del día — al "Atender ahora"/"Planificar" pedir fecha de ejecución (hoy/mañana) y construir la vista Hoy/Preparar mañana; o edición de tarea + estado En espera.
+ÚLTIMO_INCREMENTO: Botón "+" ampliado a 4 tipos (Tarea, Evento, Gasto, Idea) con tablas maestras (migración 0004: events, expenses, ideas — cada una con RLS). Evento con fecha→events (calendario); sin fecha→tarea al Inbox ("Definir fecha del evento: …"); Gasto→expenses (persistencia provisional para Finanzas); Idea→ideas (Inbox de ideas propio). La Tarea suma "Guardar y cerrar". Solo CAPTURA por ahora: los módulos de vista (Calendario, Finanzas, Inbox de ideas) están pendientes. Antes: captura+Inbox+procesamiento GTD (matriz Eisenhower) y /tareas con pestañas. Producción: https://mossie-two.vercel.app.
+FASE_TÉCNICA_ACTUAL: Fase 1 en progreso (captura de 4 tipos + Inbox + procesamiento GTD listos).
+ETAPA_FUNCIONAL_ACTUAL: capturar(4 tipos)→procesar funcionando; faltan vistas de Ideas/Calendario/Finanzas, planificación real (execution_date, Hoy/Preparar mañana), edición de tareas y estado "En espera".
+SIGUIENTE_ACCIÓN: Inbox de ideas (ver + transformar en tarea/proyecto/etc.), o Calendario (ver eventos), o planificación del día; a elección de la usuaria.
 BLOQUEOS: ninguno
-VERIFICADO_CON: pnpm typecheck, lint y build OK; recorrido Inbox → Procesar → matriz (Urgente+Importante → recomienda Atender ahora, en vivo) → confirmar → tarea a estado planned y visible en Hoy, probado en navegador contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002 y 0003 aplicadas en ese proyecto.
+VERIFICADO_CON: pnpm typecheck, lint y build OK; los 4 tipos de captura probados en navegador (evento con fecha→events y sin fecha→Inbox, gasto→expenses, idea→ideas, tarea→Inbox/exprés) contra Supabase (proyecto bnxdvrjzkdoqbnfalbws). Migraciones 0002, 0003 y 0004 aplicadas en ese proyecto.
 ```
 
 No convertir este archivo en bitácora. Mantener únicamente el estado vigente; el historial pertenece a Git o a documentos de avance.
