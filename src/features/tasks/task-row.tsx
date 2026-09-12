@@ -216,7 +216,7 @@ export function TaskRow({
             {capturada}
             {deadline ? ` · vence ${deadline}` : ""}
           </p>
-          {task.attend_today ? (
+          {task.attend_today && !showStatus ? (
             <span className="bg-clay-50 text-ink-soft mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
               <span
                 className="size-1.5 rounded-full"

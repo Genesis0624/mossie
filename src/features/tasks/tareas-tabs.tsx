@@ -18,7 +18,7 @@ const TABS: Tab[] = [
     key: "all",
     label: "Todas",
     status: null,
-    empty: "Aún no tienes tareas. Captura la primera con el botón +.",
+    empty: "No tienes tareas activas. Captura una nueva con el botón +.",
   },
   {
     key: "inbox",
@@ -78,8 +78,13 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
   const isAll = tab.key === "all";
   const isInbox = tab.key === "inbox";
   const canPlan = tab.key === "to_plan" || tab.key === "planned";
+  const activeTasks = tasks.filter(
+    (task) => task.status !== "completed" && task.status !== "canceled",
+  );
 
-  let list = tab.status ? tasks.filter((t) => t.status === tab.status) : tasks;
+  let list = tab.status
+    ? tasks.filter((task) => task.status === tab.status)
+    : activeTasks;
 
   if (isAll) {
     list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -106,7 +111,9 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
   }
 
   const countFor = (status: TaskStatus | null) =>
-    status ? tasks.filter((t) => t.status === status).length : tasks.length;
+    status
+      ? tasks.filter((t) => t.status === status).length
+      : activeTasks.length;
 
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
   const seqTask =
