@@ -8,19 +8,24 @@ import {
   updateTaskTitle,
 } from "./actions";
 import { ProcessSheet } from "./process-sheet";
+import { PlanSheet } from "./plan-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
+import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
 import type { ChecklistItem, Task } from "./types";
 
 export function TaskRow({
   task,
   canProcess = false,
+  canPlan = false,
 }: {
   task: Task;
   canProcess?: boolean;
+  canPlan?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [processOpen, setProcessOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
@@ -45,6 +50,17 @@ export function TaskRow({
     : null;
   const doneCount = steps.filter((s) => s.done).length;
   const showSteps = hovered || open;
+
+  // Fecha de ejecución y su estado derivado (En progreso / Próxima acción / …).
+  const execDate = task.execution_date
+    ? new Intl.DateTimeFormat("es-DO", {
+        day: "numeric",
+        month: "short",
+      }).format(new Date(task.execution_date + "T12:00:00"))
+    : null;
+  const today = sdDateString();
+  const bucket = planBucket(task.execution_date, today, addDays(today, 1));
+  const isOverdue = bucket === "vencida";
 
   function onComplete() {
     setDone(true);
@@ -182,6 +198,25 @@ export function TaskRow({
               Atender hoy
             </span>
           ) : null}
+          {execDate ? (
+            <span
+              className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
+                isOverdue
+                  ? "bg-clay-50 text-ink-soft"
+                  : "bg-moss-50 text-moss-800"
+              }`}
+            >
+              <span
+                className="size-1.5 rounded-full"
+                style={{
+                  background: isOverdue
+                    ? "var(--color-clay)"
+                    : "var(--color-moss-600)",
+                }}
+              />
+              {BUCKET_LABEL[bucket]} · {execDate}
+            </span>
+          ) : null}
         </div>
 
         {canProcess ? (
@@ -192,6 +227,17 @@ export function TaskRow({
             className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
           >
             Procesar
+          </button>
+        ) : null}
+
+        {canPlan ? (
+          <button
+            type="button"
+            onClick={() => setPlanOpen(true)}
+            disabled={pending}
+            className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+          >
+            {task.status === "planned" ? "Reprogramar" : "Planificar"}
           </button>
         ) : null}
 
@@ -303,6 +349,14 @@ export function TaskRow({
           task={task}
           open={processOpen}
           onClose={() => setProcessOpen(false)}
+        />
+      ) : null}
+
+      {canPlan ? (
+        <PlanSheet
+          task={task}
+          open={planOpen}
+          onClose={() => setPlanOpen(false)}
         />
       ) : null}
     </li>

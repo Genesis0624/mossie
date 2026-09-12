@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/features/tasks/task-row";
 import { TASK_SELECT, type Task } from "@/features/tasks/types";
+import { sdDateString, addDays } from "@/features/tasks/dates";
 
 const FIELDS = TASK_SELECT;
 
@@ -10,7 +11,7 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: hoyData }, { data: expressData }] =
+  const [{ data: profile }, { data: plannedData }, { data: expressData }] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -22,7 +23,7 @@ export default async function HomePage() {
         .select(FIELDS)
         .eq("status", "planned")
         .is("deleted_at", null)
-        .order("created_at", { ascending: true }),
+        .order("execution_date", { ascending: true }),
       supabase
         .from("tasks")
         .select(FIELDS)
@@ -32,8 +33,18 @@ export default async function HomePage() {
     ]);
 
   const nombre = profile?.full_name?.trim();
-  const hoy = (hoyData ?? []) as Task[];
+  const planned = (plannedData ?? []) as Task[];
   const express = (expressData ?? []) as Task[];
+
+  // Corte a medianoche en zona Santo Domingo: los buckets se derivan de la
+  // fecha, así "mañana" pasa a "hoy" solo al cambiar el día (sin cron).
+  const today = sdDateString();
+  const tomorrow = addDays(today, 1);
+  const hoy = planned.filter((t) => t.execution_date === today);
+  const manana = planned.filter((t) => t.execution_date === tomorrow);
+  const vencidas = planned.filter(
+    (t) => t.execution_date != null && t.execution_date < today,
+  );
 
   const fecha = new Intl.DateTimeFormat("es-DO", {
     weekday: "long",
@@ -58,13 +69,43 @@ export default async function HomePage() {
         <h2 className="text-ink text-base font-medium">Hoy</h2>
         {hoy.length === 0 ? (
           <p className="text-ink-mute mt-2 text-sm">
-            Nada agendado para hoy. Procesa tu Inbox y lo que sea para atender
-            ahora aparecerá aquí.
+            Nada agendado para hoy. Planifica tus tareas de Por planificar y las
+            de hoy aparecerán aquí.
           </p>
         ) : (
           <ul className="mt-4 flex flex-col gap-3">
             {hoy.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} canPlan />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {vencidas.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="text-ink text-base font-medium">Vencidas</h2>
+          <p className="text-ink-mute mt-1 text-sm">
+            Sin culpa: decide si van para hoy, otra fecha o ya no.
+          </p>
+          <ul className="mt-4 flex flex-col gap-3">
+            {vencidas.map((task) => (
+              <TaskRow key={task.id} task={task} canPlan />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="mt-8">
+        <h2 className="text-ink text-base font-medium">Preparar mañana</h2>
+        {manana.length === 0 ? (
+          <p className="text-ink-mute mt-2 text-sm">
+            Nada para mañana todavía. Lo que planifiques para mañana aparecerá
+            aquí para que prepares lo necesario.
+          </p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {manana.map((task) => (
+              <TaskRow key={task.id} task={task} canPlan />
             ))}
           </ul>
         )}

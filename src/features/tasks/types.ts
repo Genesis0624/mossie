@@ -24,6 +24,7 @@ export type Task = {
   important: boolean | null;
   pillar: string | null;
   deadline_at: string | null;
+  execution_date: string | null;
   attend_today: boolean;
   is_recurring: boolean;
   checklist: ChecklistItem[];
@@ -33,7 +34,7 @@ export type Task = {
 
 // Campos que se leen de tasks en las vistas (mantener en un solo lugar).
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, attend_today, is_recurring, checklist, completed_at, created_at";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, completed_at, created_at";
 
 // Rutas de la matriz de Eisenhower (Doc GTD §11.4-11.5).
 export type Route = "atender" | "planificar" | "delegar" | "algun_dia";

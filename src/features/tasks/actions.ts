@@ -209,6 +209,50 @@ export async function processTask(
   return { ok: true, message: null };
 }
 
+const planSchema = z.object({
+  id: z.string().uuid(),
+  execution_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
+});
+
+export type PlanResult = { ok: boolean; message: string | null };
+
+// Fijar (o reprogramar) la fecha de ejecución. Con fecha, la tarea queda
+// planificada (status='planned'); su bucket hoy/mañana/vencida/futura se deriva
+// al leer. Se limpia attend_today porque la fecha ya gobierna la agenda.
+export async function planTask(
+  id: string,
+  executionDate: string,
+): Promise<PlanResult> {
+  const parsed = planSchema.safeParse({ id, execution_date: executionDate });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Fecha inválida.",
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) return { ok: false, message: "Tu sesión expiró." };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      status: "planned",
+      execution_date: parsed.data.execution_date,
+      attend_today: false,
+    })
+    .eq("id", parsed.data.id)
+    .is("deleted_at", null);
+
+  if (error) {
+    return { ok: false, message: "No se pudo planificar. Reintenta." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+  return { ok: true, message: null };
+}
+
 export async function deleteTask(id: string): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!user) return;

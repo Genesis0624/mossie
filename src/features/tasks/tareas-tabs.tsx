@@ -27,6 +27,12 @@ const TABS: Tab[] = [
     empty: "Nada por planificar todavía.",
   },
   {
+    key: "planned",
+    label: "Planificadas",
+    status: "planned",
+    empty: "Aún no has planificado ninguna tarea.",
+  },
+  {
     key: "delegated",
     label: "Delegadas",
     status: "delegated",
@@ -64,6 +70,7 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
 
   const tab = TABS.find((t) => t.key === active)!;
   const isInbox = tab.key === "inbox";
+  const canPlan = tab.key === "to_plan" || tab.key === "planned";
 
   let list = tasks.filter((t) => t.status === tab.status);
 
@@ -78,6 +85,10 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
       order === "asc"
         ? a.created_at.localeCompare(b.created_at)
         : b.created_at.localeCompare(a.created_at),
+    );
+  } else if (tab.key === "planned") {
+    list = [...list].sort((a, b) =>
+      (a.execution_date ?? "").localeCompare(b.execution_date ?? ""),
     );
   } else if (tab.key === "completed") {
     list = [...list].sort((a, b) =>
@@ -203,7 +214,12 @@ export function TareasTabs({ tasks }: { tasks: Task[] }) {
       ) : (
         <ul className="mt-6 flex flex-col gap-3">
           {list.map((task) => (
-            <TaskRow key={task.id} task={task} canProcess={isInbox} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              canProcess={isInbox}
+              canPlan={canPlan}
+            />
           ))}
         </ul>
       )}
