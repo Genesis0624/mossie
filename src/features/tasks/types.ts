@@ -29,6 +29,47 @@ export type TaskType = "operativa" | "estrategica";
 
 export type ChecklistItem = { text: string; done: boolean };
 
+// Planificación (Flujo v2.0 §12). Todos opcionales.
+export type EnergyRequired = "baja" | "media" | "alta";
+export type EnergyEffect = "da" | "neutral" | "quita";
+export type Priority = "alta" | "media" | "baja";
+
+export const ENERGY_REQUIRED_LABEL: Record<EnergyRequired, string> = {
+  baja: "Baja",
+  media: "Media",
+  alta: "Alta",
+};
+
+export const ENERGY_EFFECT_LABEL: Record<EnergyEffect, string> = {
+  da: "Me da energía",
+  neutral: "Neutral",
+  quita: "Me quita energía",
+};
+
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  alta: "Alta",
+  media: "Media",
+  baja: "Baja",
+};
+
+// Botones rápidos de duración (§12.3). El valor es minutos; 3 activa la regla
+// de tres minutos. `null` = "Personalizada".
+export const DURATION_PRESETS: { minutes: number; label: string }[] = [
+  { minutes: 3, label: "≤3 min" },
+  { minutes: 15, label: "15 min" },
+  { minutes: 30, label: "30 min" },
+  { minutes: 60, label: "1 h" },
+];
+
+// Formatea una duración en minutos a un texto compacto ("30 min", "1 h 30 min").
+export function formatDuration(minutes: number | null): string | null {
+  if (!minutes || minutes < 1) return null;
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
 export type Task = {
   id: string;
   title: string;
@@ -46,13 +87,18 @@ export type Task = {
   waiting_reason: string | null;
   review_at: string | null;
   block_requirement: string | null;
+  scheduled_time: string | null;
+  estimated_duration_minutes: number | null;
+  energy_required: EnergyRequired | null;
+  energy_effect: EnergyEffect | null;
+  priority: Priority | null;
   completed_at: string | null;
   created_at: string;
 };
 
 // Campos que se leen de tasks en las vistas (mantener en un solo lugar).
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, completed_at, created_at";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, completed_at, created_at";
 
 // Rutas de la matriz de Eisenhower (Doc GTD §11.4-11.5).
 export type Route = "atender" | "planificar" | "delegar" | "algun_dia";

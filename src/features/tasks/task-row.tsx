@@ -14,7 +14,14 @@ import { WaitSheet } from "./wait-sheet";
 import { BlockSheet } from "./block-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
 import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
-import { TASK_STATUS_LABEL, type ChecklistItem, type Task } from "./types";
+import {
+  TASK_STATUS_LABEL,
+  PRIORITY_LABEL,
+  ENERGY_REQUIRED_LABEL,
+  formatDuration,
+  type ChecklistItem,
+  type Task,
+} from "./types";
 
 export function TaskRow({
   task,
@@ -65,6 +72,16 @@ export function TaskRow({
         month: "short",
       }).format(new Date(task.execution_date + "T12:00:00"))
     : null;
+  const hora = task.scheduled_time?.slice(0, 5) ?? null;
+  // Metadatos de planificación (duración, prioridad, energía) para una línea
+  // tenue; se muestran solo los presentes para no saturar la tarjeta.
+  const planMeta = [
+    formatDuration(task.estimated_duration_minutes),
+    task.priority ? `Prioridad ${PRIORITY_LABEL[task.priority]}` : null,
+    task.energy_required
+      ? `Energía ${ENERGY_REQUIRED_LABEL[task.energy_required]}`
+      : null,
+  ].filter(Boolean);
   const today = sdDateString();
   const bucket = planBucket(task.execution_date, today, addDays(today, 1));
   const isOverdue = task.status === "planned" && bucket === "vencida";
@@ -281,7 +298,7 @@ export function TaskRow({
                 }}
               />
               {statusLabel}
-              {execDate ? ` · ${execDate}` : ""}
+              {execDate ? ` · ${execDate}${hora ? `, ${hora}` : ""}` : ""}
             </span>
           ) : null}
           {isWaiting ? (
@@ -306,6 +323,9 @@ export function TaskRow({
                 {task.block_requirement ? `: ${task.block_requirement}` : ""}
               </span>
             </span>
+          ) : null}
+          {!isClosed && planMeta.length > 0 ? (
+            <p className="text-ink-mute mt-1 text-xs">{planMeta.join(" · ")}</p>
           ) : null}
         </div>
 

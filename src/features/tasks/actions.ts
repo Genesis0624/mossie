@@ -212,10 +212,36 @@ export async function processTask(
   return { ok: true, message: null };
 }
 
+// Planificación (Flujo v2.0 §12): la fecha de ejecución es obligatoria; el
+// resto de condiciones (hora, duración, energía, efecto y prioridad) son
+// opcionales. Se guardan junto con la fecha al confirmar.
 const planSchema = z.object({
   id: z.string().uuid(),
   execution_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
+  scheduled_time: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable()
+    .optional(),
+  estimated_duration_minutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(1440)
+    .nullable()
+    .optional(),
+  energy_required: z.enum(["baja", "media", "alta"]).nullable().optional(),
+  energy_effect: z.enum(["da", "neutral", "quita"]).nullable().optional(),
+  priority: z.enum(["alta", "media", "baja"]).nullable().optional(),
 });
+
+export type PlanInput = {
+  scheduled_time?: string | null;
+  estimated_duration_minutes?: number | null;
+  energy_required?: "baja" | "media" | "alta" | null;
+  energy_effect?: "da" | "neutral" | "quita" | null;
+  priority?: "alta" | "media" | "baja" | null;
+};
 
 export type PlanResult = { ok: boolean; message: string | null };
 
@@ -225,12 +251,21 @@ export type PlanResult = { ok: boolean; message: string | null };
 export async function planTask(
   id: string,
   executionDate: string,
+  input: PlanInput = {},
 ): Promise<PlanResult> {
-  const parsed = planSchema.safeParse({ id, execution_date: executionDate });
+  const parsed = planSchema.safeParse({
+    id,
+    execution_date: executionDate,
+    scheduled_time: input.scheduled_time ?? null,
+    estimated_duration_minutes: input.estimated_duration_minutes ?? null,
+    energy_required: input.energy_required ?? null,
+    energy_effect: input.energy_effect ?? null,
+    priority: input.priority ?? null,
+  });
   if (!parsed.success) {
     return {
       ok: false,
-      message: parsed.error.issues[0]?.message ?? "Fecha inválida.",
+      message: parsed.error.issues[0]?.message ?? "Revisa los datos.",
     };
   }
 
@@ -242,6 +277,11 @@ export async function planTask(
     .update({
       status: "planned",
       execution_date: parsed.data.execution_date,
+      scheduled_time: parsed.data.scheduled_time,
+      estimated_duration_minutes: parsed.data.estimated_duration_minutes,
+      energy_required: parsed.data.energy_required,
+      energy_effect: parsed.data.energy_effect,
+      priority: parsed.data.priority,
       attend_today: false,
     })
     .eq("id", parsed.data.id)
