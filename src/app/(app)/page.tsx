@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/features/tasks/task-row";
 import { TASK_SELECT, type Task } from "@/features/tasks/types";
@@ -11,30 +12,41 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: plannedData }, { data: expressData }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user!.id)
-        .maybeSingle(),
-      supabase
-        .from("tasks")
-        .select(FIELDS)
-        .eq("status", "planned")
-        .is("deleted_at", null)
-        .order("execution_date", { ascending: true }),
-      supabase
-        .from("tasks")
-        .select(FIELDS)
-        .eq("status", "express")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true }),
-    ]);
+  const [
+    { data: profile },
+    { data: plannedData },
+    { data: expressData },
+    { count: inboxCount },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user!.id)
+      .maybeSingle(),
+    supabase
+      .from("tasks")
+      .select(FIELDS)
+      .eq("status", "planned")
+      .is("deleted_at", null)
+      .order("execution_date", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select(FIELDS)
+      .eq("status", "express")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
+    // Indicador de Inbox (§20.2): solo el conteo de tareas sin procesar.
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "inbox")
+      .is("deleted_at", null),
+  ]);
 
   const nombre = profile?.full_name?.trim();
   const planned = (plannedData ?? []) as Task[];
   const express = (expressData ?? []) as Task[];
+  const inbox = inboxCount ?? 0;
 
   // Corte a medianoche en zona Santo Domingo: los buckets se derivan de la
   // fecha, así "mañana" pasa a "hoy" solo al cambiar el día (sin cron).
@@ -64,6 +76,69 @@ export default async function HomePage() {
       <p className="font-editorial text-ink-soft mt-3 text-lg italic">
         La cotidianidad no puede seguir ahogando el futuro.
       </p>
+
+      <Link
+        href="/tareas"
+        aria-label={
+          inbox > 0
+            ? `Procesar Inbox: ${inbox} ${inbox === 1 ? "tarea" : "tareas"} por procesar`
+            : "Abrir Inbox, sin pendientes"
+        }
+        className={`mt-8 flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors ${
+          inbox > 0
+            ? "border-moss-300 bg-moss-50 hover:bg-moss-100"
+            : "border-line bg-paper-2 hover:bg-paper"
+        }`}
+      >
+        <span className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+              inbox > 0 ? "bg-moss-700 text-paper" : "bg-line-2 text-ink-mute"
+            }`}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 13h4l2 3h4l2-3h4" />
+              <path d="M5 13V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7" />
+            </svg>
+          </span>
+          <span>
+            <span className="text-ink block text-sm font-medium">Inbox</span>
+            <span className="text-ink-mute block text-xs">
+              {inbox > 0 ? `${inbox} por procesar` : "Todo procesado por ahora"}
+            </span>
+          </span>
+        </span>
+        {inbox > 0 ? (
+          <span className="bg-moss-700 text-paper shrink-0 rounded-full px-3 py-1 text-sm font-medium">
+            Procesar
+          </span>
+        ) : (
+          <span className="text-ink-mute shrink-0" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </span>
+        )}
+      </Link>
 
       <section className="mt-10">
         <h2 className="text-ink text-base font-medium">Hoy</h2>

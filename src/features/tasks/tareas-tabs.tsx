@@ -13,13 +13,9 @@ type Tab = {
   empty: string;
 };
 
+// Orden del Flujo v2.0 §4.1: abre en Inbox; "Todas" va penúltima, antes de
+// Completadas.
 const TABS: Tab[] = [
-  {
-    key: "all",
-    label: "Todas",
-    status: null,
-    empty: "No tienes tareas activas. Captura una nueva con el botón +.",
-  },
   {
     key: "inbox",
     label: "Inbox",
@@ -45,10 +41,22 @@ const TABS: Tab[] = [
     empty: "No has delegado nada aún.",
   },
   {
+    key: "waiting",
+    label: "En espera",
+    status: "waiting",
+    empty: "Nada en espera. Aquí van las tareas que pausaste a propósito.",
+  },
+  {
     key: "someday",
     label: "Algún día",
     status: "someday",
     empty: "Sin ideas guardadas para algún día.",
+  },
+  {
+    key: "all",
+    label: "Todas",
+    status: null,
+    empty: "No tienes tareas activas. Captura una nueva con el botón +.",
   },
   {
     key: "completed",
@@ -65,7 +73,7 @@ const sdDate = (iso: string) =>
   }).format(new Date(iso));
 
 export function TareasTabs({ tasks }: { tasks: Task[] }) {
-  const [active, setActive] = useState("all");
+  const [active, setActive] = useState("inbox");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [hoyOnly, setHoyOnly] = useState(false);
   const [withDeadline, setWithDeadline] = useState(false);
