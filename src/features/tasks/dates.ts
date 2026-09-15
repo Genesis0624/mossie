@@ -17,6 +17,20 @@ export function addDays(dateStr: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Suma n meses a un yyyy-mm-dd, recortando el día al último del mes destino
+// (p. ej. 31 ene + 1 mes → 28/29 feb). Mismo criterio UTC-mediodía.
+export function addMonths(dateStr: string, n: number): string {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + n);
+  const lastDay = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
+  return d.toISOString().slice(0, 10);
+}
+
 // Estado derivado de una tarea según su execution_date. No se persiste.
 export type PlanBucket = "vencida" | "hoy" | "proxima" | "futura" | "sin_fecha";
 

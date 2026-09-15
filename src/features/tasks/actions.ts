@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { ROUTE_TO_STATUS, type ChecklistItem } from "./types";
 import { PILLAR_SLUGS } from "@/features/pillars/pillars";
 import { CONTEXT_SLUGS } from "./contexts";
+import { nextOccurrence, type FrequencyType } from "./recurrence";
+import { sdDateString } from "./dates";
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 function cleanChecklist(input: unknown): ChecklistItem[] {
   const arr = Array.isArray(input) ? input : [];
@@ -100,21 +104,169 @@ export async function createTask(
   };
 }
 
+// Datos de la tarea que se completa, necesarios para no completar bloqueadas y
+// para copiar la siguiente ocurrencia si es recurrente.
+type CompletingTask = {
+  id: string;
+  status: string;
+  title: string;
+  type: string;
+  urgent: boolean | null;
+  important: boolean | null;
+  pillar: string | null;
+  checklist: ChecklistItem[] | null;
+  execution_date: string | null;
+  scheduled_time: string | null;
+  estimated_duration_minutes: number | null;
+  energy_required: string | null;
+  energy_effect: string | null;
+  priority: string | null;
+  recurrence_rule_id: string | null;
+};
+
 export async function completeTask(id: string): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!user) return;
 
+  const { data: task } = await supabase
+    .from("tasks")
+    .select(
+      "id, status, title, type, urgent, important, pillar, checklist, execution_date, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, recurrence_rule_id",
+    )
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<CompletingTask>();
+
   // Bloqueadas no se pueden completar hasta desbloquear (Flujo v2.0 §17.3).
-  // El filtro por estado hace que la operación sea un no-op si está bloqueada.
-  await supabase
+  if (!task || task.status === "blocked") return;
+
+  const { error } = await supabase
     .from("tasks")
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", id)
     .neq("status", "blocked")
     .is("deleted_at", null);
+  if (error) return;
+
+  // Recurrencia (§13.3): al completar una ocurrencia se genera la siguiente.
+  if (task.recurrence_rule_id) {
+    await generateNextOccurrence(supabase, user.id, task);
+  }
 
   revalidatePath("/");
   revalidatePath("/tareas");
+}
+
+// Crea la siguiente ocurrencia de una tarea recurrente completada, respetando
+// fin/ocurrencias máximas y evitando duplicados. Cada ocurrencia es una tarea
+// independiente vinculada a la misma regla.
+async function generateNextOccurrence(
+  supabase: Supabase,
+  userId: string,
+  task: CompletingTask,
+): Promise<void> {
+  if (!task.recurrence_rule_id) return;
+
+  const { data: rule } = await supabase
+    .from("recurrence_rules")
+    .select(
+      "id, frequency_type, interval_value, calculation_mode, ends_at, max_occurrences, occurrences_count, is_active",
+    )
+    .eq("id", task.recurrence_rule_id)
+    .maybeSingle();
+  if (!rule || !rule.is_active) return;
+
+  const deactivate = () =>
+    supabase
+      .from("recurrence_rules")
+      .update({ is_active: false })
+      .eq("id", rule.id);
+
+  if (rule.max_occurrences && rule.occurrences_count >= rule.max_occurrences) {
+    await deactivate();
+    return;
+  }
+
+  // fixed_calendar: se cuenta desde la fecha planificada; after_completion:
+  // desde hoy (la fecha real de completado).
+  const base =
+    rule.calculation_mode === "after_completion"
+      ? sdDateString()
+      : (task.execution_date ?? sdDateString());
+  const next = nextOccurrence(
+    rule.frequency_type as FrequencyType,
+    rule.interval_value,
+    base,
+  );
+
+  if (rule.ends_at && next > rule.ends_at) {
+    await deactivate();
+    return;
+  }
+
+  // Evitar duplicados (p. ej. doble clic): no crear si ya existe una ocurrencia
+  // activa en esa fecha para la misma regla.
+  const { data: existing } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("recurrence_rule_id", rule.id)
+    .eq("execution_date", next)
+    .is("deleted_at", null)
+    .not("status", "in", "(completed,canceled)")
+    .limit(1);
+  if (existing && existing.length > 0) return;
+
+  const checklist = Array.isArray(task.checklist)
+    ? task.checklist.map((c) => ({ text: c.text, done: false }))
+    : [];
+
+  const { data: inserted } = await supabase
+    .from("tasks")
+    .insert({
+      user_id: userId,
+      title: task.title,
+      type: task.type,
+      is_express: false,
+      status: "planned",
+      urgent: task.urgent,
+      important: task.important,
+      pillar: task.pillar,
+      execution_date: next,
+      attend_today: false,
+      is_recurring: true,
+      checklist,
+      scheduled_time: task.scheduled_time,
+      estimated_duration_minutes: task.estimated_duration_minutes,
+      energy_required: task.energy_required,
+      energy_effect: task.energy_effect,
+      priority: task.priority,
+      recurrence_rule_id: rule.id,
+    })
+    .select("id")
+    .maybeSingle();
+
+  // Copiar los contextos a la nueva ocurrencia.
+  if (inserted) {
+    const { data: ctxs } = await supabase
+      .from("task_contexts")
+      .select("context")
+      .eq("task_id", task.id);
+    if (ctxs && ctxs.length > 0) {
+      await supabase
+        .from("task_contexts")
+        .insert(
+          ctxs.map((c) => ({ task_id: inserted.id, context: c.context })),
+        );
+    }
+  }
+
+  await supabase
+    .from("recurrence_rules")
+    .update({
+      next_occurrence_at: next,
+      occurrences_count: rule.occurrences_count + 1,
+    })
+    .eq("id", rule.id);
 }
 
 export async function updateTaskTitle(
@@ -236,6 +388,21 @@ const planSchema = z.object({
   priority: z.enum(["alta", "media", "baja"]).nullable().optional(),
 });
 
+// Regla de recurrencia enviada desde el panel (solo si la tarea es recurrente).
+const recurrenceSchema = z.object({
+  frequency_type: z.enum(["daily", "weekly", "monthly", "yearly"]),
+  interval_value: z.number().int().min(1).max(365),
+  calculation_mode: z.enum(["fixed_calendar", "after_completion"]),
+  ends_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  max_occurrences: z.number().int().min(1).max(1000).nullable().optional(),
+});
+
+export type RecurrenceInput = z.infer<typeof recurrenceSchema>;
+
 export type PlanInput = {
   scheduled_time?: string | null;
   estimated_duration_minutes?: number | null;
@@ -243,6 +410,7 @@ export type PlanInput = {
   energy_effect?: "da" | "neutral" | "quita" | null;
   priority?: "alta" | "media" | "baja" | null;
   contexts?: string[];
+  recurrence?: RecurrenceInput | null;
 };
 
 export type PlanResult = { ok: boolean; message: string | null };
@@ -305,6 +473,59 @@ export async function planTask(
       .insert(
         contexts.map((context) => ({ task_id: parsed.data.id, context })),
       );
+  }
+
+  // Recurrencia (§13): solo si la tarea está marcada como recurrente. Se crea o
+  // actualiza su regla; la primera ocurrencia es esta tarea.
+  if (input.recurrence) {
+    const rc = recurrenceSchema.safeParse(input.recurrence);
+    const { data: t } = await supabase
+      .from("tasks")
+      .select("is_recurring, recurrence_rule_id")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (rc.success && t?.is_recurring) {
+      const ruleFields = {
+        frequency_type: rc.data.frequency_type,
+        interval_value: rc.data.interval_value,
+        calculation_mode: rc.data.calculation_mode,
+        starts_at: parsed.data.execution_date,
+        ends_at: rc.data.ends_at ?? null,
+        max_occurrences: rc.data.max_occurrences ?? null,
+        is_active: true,
+      };
+      if (t.recurrence_rule_id) {
+        await supabase
+          .from("recurrence_rules")
+          .update(ruleFields)
+          .eq("id", t.recurrence_rule_id);
+      } else {
+        const nextAt =
+          rc.data.calculation_mode === "fixed_calendar"
+            ? nextOccurrence(
+                rc.data.frequency_type,
+                rc.data.interval_value,
+                parsed.data.execution_date,
+              )
+            : null;
+        const { data: rule } = await supabase
+          .from("recurrence_rules")
+          .insert({
+            user_id: user.id,
+            ...ruleFields,
+            occurrences_count: 1,
+            next_occurrence_at: nextAt,
+          })
+          .select("id")
+          .maybeSingle();
+        if (rule) {
+          await supabase
+            .from("tasks")
+            .update({ recurrence_rule_id: rule.id })
+            .eq("id", parsed.data.id);
+        }
+      }
+    }
   }
 
   revalidatePath("/");

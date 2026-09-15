@@ -14,6 +14,7 @@ import { WaitSheet } from "./wait-sheet";
 import { BlockSheet } from "./block-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
 import { contextName } from "./contexts";
+import { recurrenceSummary } from "./recurrence";
 import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
 import {
   TASK_STATUS_LABEL,
@@ -137,6 +138,14 @@ export function TaskRow({
     detailRows.push({
       label: "Contexto",
       value: task.contexts.map(contextName).join(", "),
+    });
+  if (task.recurrence)
+    detailRows.push({
+      label: "Repetición",
+      value: recurrenceSummary(
+        task.recurrence.frequency_type,
+        task.recurrence.interval_value,
+      ),
     });
   const hasDetail = detailRows.length > 0 || steps.length > 0;
 

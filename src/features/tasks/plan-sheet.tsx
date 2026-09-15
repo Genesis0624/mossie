@@ -5,6 +5,13 @@ import { planTask, completeTask } from "./actions";
 import { sdDateString, addDays } from "./dates";
 import { CONTEXTS } from "./contexts";
 import {
+  FREQUENCY_TYPES,
+  FREQUENCY_LABEL,
+  CALCULATION_MODE_LABEL,
+  type FrequencyType,
+  type CalculationMode,
+} from "./recurrence";
+import {
   DURATION_PRESETS,
   ENERGY_REQUIRED_LABEL,
   ENERGY_EFFECT_LABEL,
@@ -57,6 +64,22 @@ export function PlanSheet({
       prev.includes(slug) ? prev.filter((c) => c !== slug) : [...prev, slug],
     );
 
+  // Recurrencia (§13): solo se pide si la tarea fue marcada como recurrente al
+  // procesarla. Se prefiere la regla existente al reprogramar.
+  const rec = task.recurrence;
+  const [freq, setFreq] = useState<FrequencyType>(
+    rec?.frequency_type ?? "weekly",
+  );
+  const [interval, setInterval] = useState<number>(rec?.interval_value ?? 1);
+  const [calcMode, setCalcMode] = useState<CalculationMode>(
+    rec?.calculation_mode ?? "fixed_calendar",
+  );
+  const [endMode, setEndMode] = useState<"never" | "date" | "count">(
+    rec?.ends_at ? "date" : rec?.max_occurrences ? "count" : "never",
+  );
+  const [endsAt, setEndsAt] = useState<string>(rec?.ends_at ?? "");
+  const [maxOcc, setMaxOcc] = useState<number>(rec?.max_occurrences ?? 10);
+
   if (!open) return null;
 
   const fmt = (d: string) =>
@@ -67,6 +90,14 @@ export function PlanSheet({
     }).format(new Date(d + "T12:00:00"));
 
   const isThreeMin = !customMode && duration === 3;
+
+  const RU: Record<FrequencyType, [string, string]> = {
+    daily: ["día", "días"],
+    weekly: ["semana", "semanas"],
+    monthly: ["mes", "meses"],
+    yearly: ["año", "años"],
+  };
+  const freqUnit = RU[freq][interval > 1 ? 1 : 0];
 
   const submit = () => {
     if (!date) {
@@ -82,6 +113,21 @@ export function PlanSheet({
         energy_effect: energyEff,
         priority,
         contexts,
+        recurrence: task.is_recurring
+          ? {
+              frequency_type: freq,
+              interval_value: Math.max(
+                1,
+                Math.min(365, Math.floor(interval || 1)),
+              ),
+              calculation_mode: calcMode,
+              ends_at: endMode === "date" ? endsAt || null : null,
+              max_occurrences:
+                endMode === "count"
+                  ? Math.max(1, Math.floor(maxOcc || 1))
+                  : null,
+            }
+          : null,
       });
       if (res.ok) onClose();
       else setError(res.message);
@@ -304,6 +350,108 @@ export function PlanSheet({
             </Chip>
           ))}
         </div>
+
+        {/* Recurrencia (solo si la tarea es recurrente) */}
+        {task.is_recurring ? (
+          <div className="border-line-2 mt-5 border-t pt-4">
+            <p className="text-ink-soft text-sm font-medium">Repetición</p>
+
+            <p className="text-ink-mute mt-3 text-xs">Frecuencia</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {FREQUENCY_TYPES.map((f) => (
+                <Chip key={f} active={freq === f} onClick={() => setFreq(f)}>
+                  {FREQUENCY_LABEL[f]}
+                </Chip>
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-ink-soft text-sm">Cada</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={interval}
+                onChange={(e) =>
+                  setInterval(e.target.value ? Number(e.target.value) : 1)
+                }
+                aria-label="Intervalo de repetición"
+                className="border-line-2 bg-paper-2 text-ink focus:border-moss-500 min-h-[44px] w-20 rounded-md border px-3 text-base outline-none"
+              />
+              <span className="text-ink-soft text-sm">{freqUnit}</span>
+            </div>
+
+            <p className="text-ink-mute mt-4 text-xs">
+              Cómo se calcula la próxima
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                ["fixed_calendar", "after_completion"] as CalculationMode[]
+              ).map((m) => (
+                <Chip
+                  key={m}
+                  active={calcMode === m}
+                  onClick={() => setCalcMode(m)}
+                >
+                  {CALCULATION_MODE_LABEL[m]}
+                </Chip>
+              ))}
+            </div>
+            <p className="text-ink-mute mt-1 text-xs">
+              {calcMode === "fixed_calendar"
+                ? "La próxima fecha sigue el calendario, aunque la completes tarde."
+                : "La próxima se cuenta desde el día en que la completes."}
+            </p>
+
+            <p className="text-ink-mute mt-4 text-xs">Termina</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Chip
+                active={endMode === "never"}
+                onClick={() => setEndMode("never")}
+              >
+                Nunca
+              </Chip>
+              <Chip
+                active={endMode === "date"}
+                onClick={() => setEndMode("date")}
+              >
+                En una fecha
+              </Chip>
+              <Chip
+                active={endMode === "count"}
+                onClick={() => setEndMode("count")}
+              >
+                Tras N veces
+              </Chip>
+            </div>
+            {endMode === "date" ? (
+              <input
+                type="date"
+                value={endsAt}
+                min={date || today}
+                onChange={(e) => setEndsAt(e.target.value)}
+                aria-label="Fecha de fin de la repetición"
+                className="border-line-2 bg-paper-2 text-ink focus:border-moss-500 mt-2 min-h-[48px] rounded-md border px-4 text-base outline-none"
+              />
+            ) : null}
+            {endMode === "count" ? (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={maxOcc}
+                  onChange={(e) =>
+                    setMaxOcc(e.target.value ? Number(e.target.value) : 1)
+                  }
+                  aria-label="Número total de repeticiones"
+                  className="border-line-2 bg-paper-2 text-ink focus:border-moss-500 min-h-[44px] w-20 rounded-md border px-3 text-base outline-none"
+                />
+                <span className="text-ink-soft text-sm">veces en total</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {error ? (
           <p className="bg-clay-50 text-ink-soft mt-4 rounded-md px-3 py-2 text-sm">

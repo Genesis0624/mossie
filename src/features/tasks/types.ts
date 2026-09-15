@@ -93,24 +93,42 @@ export type Task = {
   energy_effect: EnergyEffect | null;
   priority: Priority | null;
   contexts: string[];
+  recurrence_rule_id: string | null;
+  recurrence: TaskRecurrence | null;
   completed_at: string | null;
   created_at: string;
 };
 
+// Resumen de la regla de recurrencia enlazada (para mostrarla; el cálculo vive
+// en recurrence.ts).
+export type TaskRecurrence = {
+  frequency_type: "daily" | "weekly" | "monthly" | "yearly";
+  interval_value: number;
+  calculation_mode: "fixed_calendar" | "after_completion";
+  ends_at: string | null;
+  max_occurrences: number | null;
+};
+
 // Campos que se leen de tasks en las vistas (mantener en un solo lugar).
 // task_contexts(context) trae los contextos como relación anidada; se aplana
-// con rowToTask.
+// con rowToTask. recurrence:recurrence_rules(...) trae la regla enlazada.
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, completed_at, created_at, task_contexts(context)";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, recurrence_rule_id, completed_at, created_at, task_contexts(context), recurrence:recurrence_rules(frequency_type, interval_value, calculation_mode, ends_at, max_occurrences)";
 
-// Fila cruda de Supabase (con la relación anidada) → Task con contexts aplanado.
-type RawTaskRow = Omit<Task, "contexts"> & {
+// Fila cruda de Supabase (con relaciones anidadas) → Task aplanado.
+type RawTaskRow = Omit<Task, "contexts" | "recurrence"> & {
   task_contexts?: { context: string }[] | null;
+  recurrence?: TaskRecurrence | TaskRecurrence[] | null;
 };
 
 export function rowToTask(row: RawTaskRow): Task {
-  const { task_contexts, ...rest } = row;
-  return { ...rest, contexts: (task_contexts ?? []).map((c) => c.context) };
+  const { task_contexts, recurrence, ...rest } = row;
+  const rec = Array.isArray(recurrence) ? (recurrence[0] ?? null) : recurrence;
+  return {
+    ...rest,
+    contexts: (task_contexts ?? []).map((c) => c.context),
+    recurrence: rec ?? null,
+  };
 }
 
 export function rowsToTasks(rows: RawTaskRow[] | null | undefined): Task[] {
