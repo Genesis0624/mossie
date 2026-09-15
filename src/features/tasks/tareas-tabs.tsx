@@ -47,6 +47,13 @@ const TABS: Tab[] = [
     empty: "Nada en espera. Aquí van las tareas que pausaste a propósito.",
   },
   {
+    key: "blocked",
+    label: "Bloqueadas",
+    status: "blocked",
+    empty:
+      "Nada bloqueado. Aquí van las tareas a las que les falta un requisito.",
+  },
+  {
     key: "someday",
     label: "Algún día",
     status: "someday",

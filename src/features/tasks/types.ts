@@ -5,6 +5,7 @@ export type TaskStatus =
   | "planned"
   | "in_progress"
   | "waiting"
+  | "blocked"
   | "someday"
   | "delegated"
   | "completed"
@@ -17,6 +18,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   planned: "Planificada",
   in_progress: "En progreso",
   waiting: "En espera",
+  blocked: "Bloqueada",
   someday: "Algún día",
   delegated: "Delegada",
   completed: "Completada",
@@ -41,13 +43,16 @@ export type Task = {
   attend_today: boolean;
   is_recurring: boolean;
   checklist: ChecklistItem[];
+  waiting_reason: string | null;
+  review_at: string | null;
+  block_requirement: string | null;
   completed_at: string | null;
   created_at: string;
 };
 
 // Campos que se leen de tasks en las vistas (mantener en un solo lugar).
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, completed_at, created_at";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, completed_at, created_at";
 
 // Rutas de la matriz de Eisenhower (Doc GTD §11.4-11.5).
 export type Route = "atender" | "planificar" | "delegar" | "algun_dia";

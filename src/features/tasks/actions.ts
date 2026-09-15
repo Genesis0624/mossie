@@ -103,10 +103,13 @@ export async function completeTask(id: string): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!user) return;
 
+  // Bloqueadas no se pueden completar hasta desbloquear (Flujo v2.0 §17.3).
+  // El filtro por estado hace que la operación sea un no-op si está bloqueada.
   await supabase
     .from("tasks")
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", id)
+    .neq("status", "blocked")
     .is("deleted_at", null);
 
   revalidatePath("/");
@@ -251,6 +254,125 @@ export async function planTask(
   revalidatePath("/");
   revalidatePath("/tareas");
   return { ok: true, message: null };
+}
+
+// En espera (Flujo v2.0 §18): "podría, pero decidí pausarla". Fecha de revisión
+// OBLIGATORIA (cuándo volver a decidir); motivo OPCIONAL. Se limpia la fecha de
+// ejecución para que no aparezca como vencida en Hoy.
+const waitSchema = z.object({
+  id: z.string().uuid(),
+  review_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige una fecha válida."),
+  reason: z.string().trim().max(300, "Demasiado largo.").optional(),
+});
+
+export type WaitResult = { ok: boolean; message: string | null };
+
+export async function waitTask(
+  id: string,
+  reviewAt: string,
+  reason?: string,
+): Promise<WaitResult> {
+  const parsed = waitSchema.safeParse({ id, review_at: reviewAt, reason });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Revisa los datos.",
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) return { ok: false, message: "Tu sesión expiró." };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      status: "waiting",
+      review_at: parsed.data.review_at,
+      waiting_reason: parsed.data.reason || null,
+      execution_date: null,
+      attend_today: false,
+    })
+    .eq("id", parsed.data.id)
+    .is("deleted_at", null);
+
+  if (error) {
+    return { ok: false, message: "No se pudo poner en espera. Reintenta." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+  return { ok: true, message: null };
+}
+
+// Bloquear (Flujo v2.0 §17): "no puedo hacerla". Requisito de desbloqueo
+// OBLIGATORIO. Mientras esté bloqueada no se puede completar. Se limpia la
+// fecha de ejecución para que no aparezca como vencida.
+const blockSchema = z.object({
+  id: z.string().uuid(),
+  requirement: z
+    .string()
+    .trim()
+    .min(1, "Escribe qué falta para poder hacerla.")
+    .max(300, "Demasiado largo."),
+});
+
+export type BlockResult = { ok: boolean; message: string | null };
+
+export async function blockTask(
+  id: string,
+  requirement: string,
+): Promise<BlockResult> {
+  const parsed = blockSchema.safeParse({ id, requirement });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Requisito inválido.",
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) return { ok: false, message: "Tu sesión expiró." };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      status: "blocked",
+      block_requirement: parsed.data.requirement,
+      execution_date: null,
+      attend_today: false,
+    })
+    .eq("id", parsed.data.id)
+    .is("deleted_at", null);
+
+  if (error) {
+    return { ok: false, message: "No se pudo bloquear. Reintenta." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+  return { ok: true, message: null };
+}
+
+// Reanudar (En espera) o Desbloquear (Bloqueadas): en ambos casos la tarea
+// vuelve a "Por planificar" para redecidir fecha, y se limpia el estado de
+// pausa/bloqueo. (§17.3 y §18.4.)
+export async function resumeTask(id: string): Promise<void> {
+  const { supabase, user } = await requireUser();
+  if (!user) return;
+
+  await supabase
+    .from("tasks")
+    .update({
+      status: "to_plan",
+      waiting_reason: null,
+      review_at: null,
+      block_requirement: null,
+    })
+    .eq("id", id)
+    .is("deleted_at", null);
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
 }
 
 export async function deleteTask(id: string): Promise<void> {

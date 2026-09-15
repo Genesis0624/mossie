@@ -4,11 +4,14 @@ import { useState, useTransition } from "react";
 import {
   completeTask,
   deleteTask,
+  resumeTask,
   updateTaskChecklist,
   updateTaskTitle,
 } from "./actions";
 import { ProcessSheet } from "./process-sheet";
 import { PlanSheet } from "./plan-sheet";
+import { WaitSheet } from "./wait-sheet";
+import { BlockSheet } from "./block-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
 import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
 import { TASK_STATUS_LABEL, type ChecklistItem, type Task } from "./types";
@@ -28,6 +31,8 @@ export function TaskRow({
   const [done, setDone] = useState(false);
   const [processOpen, setProcessOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [waitOpen, setWaitOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
@@ -64,10 +69,24 @@ export function TaskRow({
   const bucket = planBucket(task.execution_date, today, addDays(today, 1));
   const isOverdue = task.status === "planned" && bucket === "vencida";
   const isClosed = task.status === "completed" || task.status === "canceled";
+  const isWaiting = task.status === "waiting";
+  const isBlocked = task.status === "blocked";
+  // "Poner en espera" y "Bloquear" están disponibles en cualquier tarea activa
+  // ya procesada (no en Inbox, que aún no se decide, ni en cerradas, en espera
+  // o ya bloqueada).
+  const canPause =
+    !isClosed && !isWaiting && !isBlocked && task.status !== "inbox";
   const statusLabel =
     task.status === "planned"
       ? BUCKET_LABEL[bucket]
       : TASK_STATUS_LABEL[task.status];
+
+  // Reanudar (En espera) o Desbloquear (Bloqueadas): ambas vuelven a Por
+  // planificar (misma acción de servidor).
+  function onResume() {
+    setMenuOpen(false);
+    startTransition(() => resumeTask(task.id));
+  }
 
   function onComplete() {
     setDone(true);
@@ -161,6 +180,26 @@ export function TaskRow({
               <path d="M5 12l5 5L20 7" />
             </svg>
           </span>
+        ) : isBlocked ? (
+          <span
+            aria-hidden="true"
+            title="Bloqueada: no se puede completar hasta desbloquear"
+            className="border-line-2 text-ink-mute flex size-6 shrink-0 items-center justify-center rounded-full border"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </span>
         ) : (
           <button
             type="button"
@@ -225,7 +264,7 @@ export function TaskRow({
               Atender hoy
             </span>
           ) : null}
-          {showStatus || execDate ? (
+          {(showStatus || execDate) && !isWaiting && !isBlocked ? (
             <span
               className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
                 isOverdue
@@ -243,6 +282,29 @@ export function TaskRow({
               />
               {statusLabel}
               {execDate ? ` · ${execDate}` : ""}
+            </span>
+          ) : null}
+          {isWaiting ? (
+            <span className="bg-clay-50 text-ink-soft mt-1 inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--color-clay)" }}
+              />
+              <span className="truncate">
+                En espera{task.waiting_reason ? `: ${task.waiting_reason}` : ""}
+              </span>
+            </span>
+          ) : null}
+          {isBlocked ? (
+            <span className="bg-clay-50 text-ink-soft mt-1 inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--color-clay)" }}
+              />
+              <span className="truncate">
+                Bloqueada
+                {task.block_requirement ? `: ${task.block_requirement}` : ""}
+              </span>
             </span>
           ) : null}
         </div>
@@ -266,6 +328,28 @@ export function TaskRow({
             className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
           >
             {task.status === "planned" ? "Reprogramar" : "Planificar"}
+          </button>
+        ) : null}
+
+        {isWaiting ? (
+          <button
+            type="button"
+            onClick={onResume}
+            disabled={pending}
+            className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+          >
+            Reanudar
+          </button>
+        ) : null}
+
+        {isBlocked ? (
+          <button
+            type="button"
+            onClick={onResume}
+            disabled={pending}
+            className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+          >
+            Desbloquear
           </button>
         ) : null}
 
@@ -360,6 +444,32 @@ export function TaskRow({
             >
               Editar
             </button>
+            {canPause ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setWaitOpen(true);
+                }}
+                className="text-ink hover:bg-paper-2 block w-full px-4 py-2.5 text-left text-sm"
+              >
+                Poner en espera
+              </button>
+            ) : null}
+            {canPause ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setBlockOpen(true);
+                }}
+                className="text-ink hover:bg-paper-2 block w-full px-4 py-2.5 text-left text-sm"
+              >
+                Bloquear
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"
@@ -385,6 +495,22 @@ export function TaskRow({
           task={task}
           open={planOpen}
           onClose={() => setPlanOpen(false)}
+        />
+      ) : null}
+
+      {canPause ? (
+        <WaitSheet
+          task={task}
+          open={waitOpen}
+          onClose={() => setWaitOpen(false)}
+        />
+      ) : null}
+
+      {canPause ? (
+        <BlockSheet
+          task={task}
+          open={blockOpen}
+          onClose={() => setBlockOpen(false)}
         />
       ) : null}
     </li>
