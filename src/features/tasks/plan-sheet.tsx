@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { planTask, completeTask } from "./actions";
 import { sdDateString, addDays } from "./dates";
+import { CONTEXTS } from "./contexts";
 import {
   DURATION_PRESETS,
   ENERGY_REQUIRED_LABEL,
@@ -49,6 +50,12 @@ export function PlanSheet({
     task.energy_effect,
   );
   const [priority, setPriority] = useState<Priority | null>(task.priority);
+  const [contexts, setContexts] = useState<string[]>(task.contexts ?? []);
+
+  const toggleContext = (slug: string) =>
+    setContexts((prev) =>
+      prev.includes(slug) ? prev.filter((c) => c !== slug) : [...prev, slug],
+    );
 
   if (!open) return null;
 
@@ -74,6 +81,7 @@ export function PlanSheet({
         energy_required: energyReq,
         energy_effect: energyEff,
         priority,
+        contexts,
       });
       if (res.ok) onClose();
       else setError(res.message);
@@ -277,6 +285,22 @@ export function PlanSheet({
               onClick={() => setPriority(priority === k ? null : k)}
             >
               {PRIORITY_LABEL[k]}
+            </Chip>
+          ))}
+        </div>
+
+        {/* Contexto (selección múltiple) */}
+        <p className="text-ink-soft mt-4 text-sm">
+          Contexto <span className="text-ink-mute">(opcional, varios)</span>
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {CONTEXTS.map((c) => (
+            <Chip
+              key={c.slug}
+              active={contexts.includes(c.slug)}
+              onClick={() => toggleContext(c.slug)}
+            >
+              {c.name}
             </Chip>
           ))}
         </div>

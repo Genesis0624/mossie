@@ -92,13 +92,30 @@ export type Task = {
   energy_required: EnergyRequired | null;
   energy_effect: EnergyEffect | null;
   priority: Priority | null;
+  contexts: string[];
   completed_at: string | null;
   created_at: string;
 };
 
 // Campos que se leen de tasks en las vistas (mantener en un solo lugar).
+// task_contexts(context) trae los contextos como relación anidada; se aplana
+// con rowToTask.
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, completed_at, created_at";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, completed_at, created_at, task_contexts(context)";
+
+// Fila cruda de Supabase (con la relación anidada) → Task con contexts aplanado.
+type RawTaskRow = Omit<Task, "contexts"> & {
+  task_contexts?: { context: string }[] | null;
+};
+
+export function rowToTask(row: RawTaskRow): Task {
+  const { task_contexts, ...rest } = row;
+  return { ...rest, contexts: (task_contexts ?? []).map((c) => c.context) };
+}
+
+export function rowsToTasks(rows: RawTaskRow[] | null | undefined): Task[] {
+  return (rows ?? []).map(rowToTask);
+}
 
 // Rutas de la matriz de Eisenhower (Doc GTD §11.4-11.5).
 export type Route = "atender" | "planificar" | "delegar" | "algun_dia";

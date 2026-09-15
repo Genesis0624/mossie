@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { TareasTabs } from "@/features/tasks/tareas-tabs";
-import { TASK_SELECT, type Task } from "@/features/tasks/types";
+import { TASK_SELECT, rowsToTasks } from "@/features/tasks/types";
 
 export const metadata: Metadata = { title: "Tareas" };
 
@@ -14,7 +14,7 @@ export default async function TareasPage() {
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
-  const tasks = (data ?? []) as Task[];
+  const tasks = rowsToTasks(data);
 
   return (
     <main className="px-6 pt-12">

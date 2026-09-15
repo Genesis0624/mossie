@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TaskRow } from "@/features/tasks/task-row";
-import { TASK_SELECT, type Task } from "@/features/tasks/types";
+import { TASK_SELECT, rowsToTasks } from "@/features/tasks/types";
 import { sdDateString, addDays } from "@/features/tasks/dates";
 
 const FIELDS = TASK_SELECT;
@@ -44,8 +44,8 @@ export default async function HomePage() {
   ]);
 
   const nombre = profile?.full_name?.trim();
-  const planned = (plannedData ?? []) as Task[];
-  const express = (expressData ?? []) as Task[];
+  const planned = rowsToTasks(plannedData);
+  const express = rowsToTasks(expressData);
   const inbox = inboxCount ?? 0;
 
   // Corte a medianoche en zona Santo Domingo: los buckets se derivan de la

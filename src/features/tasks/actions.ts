@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ROUTE_TO_STATUS, type ChecklistItem } from "./types";
 import { PILLAR_SLUGS } from "@/features/pillars/pillars";
+import { CONTEXT_SLUGS } from "./contexts";
 
 function cleanChecklist(input: unknown): ChecklistItem[] {
   const arr = Array.isArray(input) ? input : [];
@@ -241,6 +242,7 @@ export type PlanInput = {
   energy_required?: "baja" | "media" | "alta" | null;
   energy_effect?: "da" | "neutral" | "quita" | null;
   priority?: "alta" | "media" | "baja" | null;
+  contexts?: string[];
 };
 
 export type PlanResult = { ok: boolean; message: string | null };
@@ -289,6 +291,20 @@ export async function planTask(
 
   if (error) {
     return { ok: false, message: "No se pudo planificar. Reintenta." };
+  }
+
+  // Contextos (m2m §12.5): se reemplaza el conjunto por el elegido. Solo slugs
+  // válidos y sin repetir. La RLS de task_contexts limita al dueño de la tarea.
+  const contexts = [...new Set(input.contexts ?? [])].filter((c) =>
+    CONTEXT_SLUGS.includes(c),
+  );
+  await supabase.from("task_contexts").delete().eq("task_id", parsed.data.id);
+  if (contexts.length > 0) {
+    await supabase
+      .from("task_contexts")
+      .insert(
+        contexts.map((context) => ({ task_id: parsed.data.id, context })),
+      );
   }
 
   revalidatePath("/");
