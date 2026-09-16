@@ -38,6 +38,17 @@ const items: NavItem[] = [
     ),
   },
   {
+    href: "/ideas",
+    label: "Ideas",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...stroke}>
+        <path d="M9 18h6" />
+        <path d="M10 21h4" />
+        <path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8.9.9 1.6l.1.5h5l.1-.5c.1-.7.4-1.2.9-1.6A6 6 0 0 0 12 3z" />
+      </svg>
+    ),
+  },
+  {
     href: "/perfil",
     label: "Perfil",
     icon: (
@@ -71,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const [inicio, inbox, perfil] = items;
+  const [inicio, inbox, ideas, perfil] = items;
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
@@ -96,6 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
 
+          {linkFor(ideas)}
           {linkFor(perfil)}
         </div>
       </nav>
