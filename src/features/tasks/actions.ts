@@ -55,6 +55,29 @@ async function requireUser() {
   return { supabase, user };
 }
 
+// Registro de historial (§23). Best-effort: no debe romper la operación
+// principal si falla.
+async function logHistory(
+  supabase: Supabase,
+  userId: string,
+  taskId: string,
+  eventType: string,
+  opts: {
+    previous?: string | null;
+    next?: string | null;
+    metadata?: Record<string, unknown>;
+  } = {},
+): Promise<void> {
+  await supabase.from("task_history").insert({
+    user_id: userId,
+    task_id: taskId,
+    event_type: eventType,
+    previous_value: opts.previous ?? null,
+    new_value: opts.next ?? null,
+    metadata: opts.metadata ?? null,
+  });
+}
+
 export async function createTask(
   _prev: CaptureState,
   formData: FormData,
@@ -147,6 +170,8 @@ export async function completeTask(id: string): Promise<void> {
     .neq("status", "blocked")
     .is("deleted_at", null);
   if (error) return;
+
+  await logHistory(supabase, user.id, id, "completed");
 
   // Recurrencia (§13.3): al completar una ocurrencia se genera la siguiente.
   if (task.recurrence_rule_id) {
@@ -360,6 +385,11 @@ export async function processTask(
     return { ok: false, message: "No se pudo procesar. Reintenta." };
   }
 
+  await logHistory(supabase, user.id, parsed.data.id, "processed", {
+    next: ROUTE_TO_STATUS[parsed.data.route],
+    metadata: { route: parsed.data.route },
+  });
+
   revalidatePath("/");
   revalidatePath("/tareas");
   return { ok: true, message: null };
@@ -442,6 +472,18 @@ export async function planTask(
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, message: "Tu sesión expiró." };
 
+  // Estado previo: para detectar reprogramación (§16.3) y reutilizar en la
+  // recurrencia.
+  const { data: prev } = await supabase
+    .from("tasks")
+    .select(
+      "execution_date, reschedule_count, is_recurring, recurrence_rule_id",
+    )
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  const prevDate = prev?.execution_date ?? null;
+  const isReschedule = !!prevDate && prevDate !== parsed.data.execution_date;
+
   const { error } = await supabase
     .from("tasks")
     .update({
@@ -453,6 +495,7 @@ export async function planTask(
       energy_effect: parsed.data.energy_effect,
       priority: parsed.data.priority,
       attend_today: false,
+      reschedule_count: (prev?.reschedule_count ?? 0) + (isReschedule ? 1 : 0),
     })
     .eq("id", parsed.data.id)
     .is("deleted_at", null);
@@ -460,6 +503,16 @@ export async function planTask(
   if (error) {
     return { ok: false, message: "No se pudo planificar. Reintenta." };
   }
+
+  // Historial (§23): reprogramar conserva la fecha anterior; la primera
+  // planificación registra 'planned'.
+  await logHistory(
+    supabase,
+    user.id,
+    parsed.data.id,
+    isReschedule ? "rescheduled" : "planned",
+    { previous: prevDate, next: parsed.data.execution_date },
+  );
 
   // Contextos (m2m §12.5): se reemplaza el conjunto por el elegido. Solo slugs
   // válidos y sin repetir. La RLS de task_contexts limita al dueño de la tarea.
@@ -479,12 +532,7 @@ export async function planTask(
   // actualiza su regla; la primera ocurrencia es esta tarea.
   if (input.recurrence) {
     const rc = recurrenceSchema.safeParse(input.recurrence);
-    const { data: t } = await supabase
-      .from("tasks")
-      .select("is_recurring, recurrence_rule_id")
-      .eq("id", parsed.data.id)
-      .maybeSingle();
-    if (rc.success && t?.is_recurring) {
+    if (rc.success && prev?.is_recurring) {
       const ruleFields = {
         frequency_type: rc.data.frequency_type,
         interval_value: rc.data.interval_value,
@@ -494,11 +542,11 @@ export async function planTask(
         max_occurrences: rc.data.max_occurrences ?? null,
         is_active: true,
       };
-      if (t.recurrence_rule_id) {
+      if (prev.recurrence_rule_id) {
         await supabase
           .from("recurrence_rules")
           .update(ruleFields)
-          .eq("id", t.recurrence_rule_id);
+          .eq("id", prev.recurrence_rule_id);
       } else {
         const nextAt =
           rc.data.calculation_mode === "fixed_calendar"
@@ -560,6 +608,13 @@ export async function waitTask(
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, message: "Tu sesión expiró." };
 
+  // §18.3: se guarda la fecha de ejecución anterior en el historial.
+  const { data: prev } = await supabase
+    .from("tasks")
+    .select("execution_date")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("tasks")
     .update({
@@ -575,6 +630,11 @@ export async function waitTask(
   if (error) {
     return { ok: false, message: "No se pudo poner en espera. Reintenta." };
   }
+
+  await logHistory(supabase, user.id, parsed.data.id, "paused", {
+    previous: prev?.execution_date ?? null,
+    metadata: { review_at: parsed.data.review_at },
+  });
 
   revalidatePath("/");
   revalidatePath("/tareas");
@@ -610,6 +670,12 @@ export async function blockTask(
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, message: "Tu sesión expiró." };
 
+  const { data: prev } = await supabase
+    .from("tasks")
+    .select("execution_date")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("tasks")
     .update({
@@ -625,6 +691,11 @@ export async function blockTask(
     return { ok: false, message: "No se pudo bloquear. Reintenta." };
   }
 
+  await logHistory(supabase, user.id, parsed.data.id, "blocked", {
+    previous: prev?.execution_date ?? null,
+    metadata: { requirement: parsed.data.requirement },
+  });
+
   revalidatePath("/");
   revalidatePath("/tareas");
   return { ok: true, message: null };
@@ -637,6 +708,12 @@ export async function resumeTask(id: string): Promise<void> {
   const { supabase, user } = await requireUser();
   if (!user) return;
 
+  const { data: prev } = await supabase
+    .from("tasks")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+
   await supabase
     .from("tasks")
     .update({
@@ -647,6 +724,14 @@ export async function resumeTask(id: string): Promise<void> {
     })
     .eq("id", id)
     .is("deleted_at", null);
+
+  // 'unblocked' si venía de Bloqueadas; 'resumed' si venía de En espera.
+  await logHistory(
+    supabase,
+    user.id,
+    id,
+    prev?.status === "blocked" ? "unblocked" : "resumed",
+  );
 
   revalidatePath("/");
   revalidatePath("/tareas");

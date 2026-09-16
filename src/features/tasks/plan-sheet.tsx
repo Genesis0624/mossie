@@ -99,6 +99,15 @@ export function PlanSheet({
   };
   const freqUnit = RU[freq][interval > 1 ? 1 : 0];
 
+  // Aviso si la fecha de ejecución supera la fecha límite (§16.3, §25).
+  const overDeadline = !!task.deadline_at && !!date && date > task.deadline_at;
+  const deadlineFmt = task.deadline_at
+    ? new Intl.DateTimeFormat("es-DO", {
+        day: "numeric",
+        month: "short",
+      }).format(new Date(task.deadline_at + "T12:00:00"))
+    : null;
+
   const submit = () => {
     if (!date) {
       setError("Elige el día en que la ejecutas.");
@@ -453,6 +462,13 @@ export function PlanSheet({
           </div>
         ) : null}
 
+        {overDeadline ? (
+          <p className="border-clay-200 bg-clay-50 text-ink-soft mt-4 rounded-md border px-3 py-2 text-sm">
+            Esta fecha es posterior a la fecha límite ({deadlineFmt}). Puedes
+            planificarla igual si lo decides.
+          </p>
+        ) : null}
+
         {error ? (
           <p className="bg-clay-50 text-ink-soft mt-4 rounded-md px-3 py-2 text-sm">
             {error}
@@ -467,9 +483,11 @@ export function PlanSheet({
         >
           {pending
             ? "Guardando…"
-            : task.status === "planned"
-              ? "Guardar cambios"
-              : "Planificar"}
+            : overDeadline
+              ? "Planificar de todas formas"
+              : task.status === "planned"
+                ? "Guardar cambios"
+                : "Planificar"}
         </button>
       </div>
     </div>

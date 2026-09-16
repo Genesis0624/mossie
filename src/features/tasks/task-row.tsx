@@ -147,6 +147,11 @@ export function TaskRow({
         task.recurrence.interval_value,
       ),
     });
+  if (task.reschedule_count > 0)
+    detailRows.push({
+      label: "Reprogramada",
+      value: `${task.reschedule_count} ${task.reschedule_count === 1 ? "vez" : "veces"}`,
+    });
   const hasDetail = detailRows.length > 0 || steps.length > 0;
 
   // Reanudar (En espera) o Desbloquear (Bloqueadas): ambas vuelven a Por
