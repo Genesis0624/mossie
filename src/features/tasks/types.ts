@@ -1,3 +1,5 @@
+import type { DelegationStatus } from "./delegations";
+
 export type TaskStatus =
   | "inbox"
   | "express"
@@ -95,9 +97,22 @@ export type Task = {
   contexts: string[];
   recurrence_rule_id: string | null;
   recurrence: TaskRecurrence | null;
+  delegation: TaskDelegation | null;
   reschedule_count: number;
   completed_at: string | null;
   created_at: string;
+};
+
+// Detalle de delegación enlazado (§14). Para mostrar y prellenar el panel.
+export type TaskDelegation = {
+  assignee_name: string | null;
+  delegation_status: DelegationStatus;
+  notify_at: string | null;
+  instructions: string | null;
+  delivery_deadline: string | null;
+  follow_up_at: string | null;
+  expected_evidence: string | null;
+  notes: string | null;
 };
 
 // Resumen de la regla de recurrencia enlazada (para mostrarla; el cálculo vive
@@ -114,21 +129,24 @@ export type TaskRecurrence = {
 // task_contexts(context) trae los contextos como relación anidada; se aplana
 // con rowToTask. recurrence:recurrence_rules(...) trae la regla enlazada.
 export const TASK_SELECT =
-  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, recurrence_rule_id, reschedule_count, completed_at, created_at, task_contexts(context), recurrence:recurrence_rules(frequency_type, interval_value, calculation_mode, ends_at, max_occurrences)";
+  "id, title, type, is_express, status, urgent, important, pillar, deadline_at, execution_date, attend_today, is_recurring, checklist, waiting_reason, review_at, block_requirement, scheduled_time, estimated_duration_minutes, energy_required, energy_effect, priority, recurrence_rule_id, reschedule_count, completed_at, created_at, task_contexts(context), recurrence:recurrence_rules(frequency_type, interval_value, calculation_mode, ends_at, max_occurrences), delegation:task_delegations(assignee_name, delegation_status, notify_at, instructions, delivery_deadline, follow_up_at, expected_evidence, notes)";
 
 // Fila cruda de Supabase (con relaciones anidadas) → Task aplanado.
-type RawTaskRow = Omit<Task, "contexts" | "recurrence"> & {
+type RawTaskRow = Omit<Task, "contexts" | "recurrence" | "delegation"> & {
   task_contexts?: { context: string }[] | null;
   recurrence?: TaskRecurrence | TaskRecurrence[] | null;
+  delegation?: TaskDelegation | TaskDelegation[] | null;
 };
 
 export function rowToTask(row: RawTaskRow): Task {
-  const { task_contexts, recurrence, ...rest } = row;
+  const { task_contexts, recurrence, delegation, ...rest } = row;
   const rec = Array.isArray(recurrence) ? (recurrence[0] ?? null) : recurrence;
+  const del = Array.isArray(delegation) ? (delegation[0] ?? null) : delegation;
   return {
     ...rest,
     contexts: (task_contexts ?? []).map((c) => c.context),
     recurrence: rec ?? null,
+    delegation: del ?? null,
   };
 }
 

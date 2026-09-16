@@ -12,9 +12,11 @@ import { ProcessSheet } from "./process-sheet";
 import { PlanSheet } from "./plan-sheet";
 import { WaitSheet } from "./wait-sheet";
 import { BlockSheet } from "./block-sheet";
+import { DelegateSheet } from "./delegate-sheet";
 import { pillarBySlug } from "@/features/pillars/pillars";
 import { contextName } from "./contexts";
 import { recurrenceSummary } from "./recurrence";
+import { DELEGATION_STATUS_LABEL } from "./delegations";
 import { sdDateString, addDays, planBucket, BUCKET_LABEL } from "./dates";
 import {
   TASK_STATUS_LABEL,
@@ -43,6 +45,7 @@ export function TaskRow({
   const [planOpen, setPlanOpen] = useState(false);
   const [waitOpen, setWaitOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [delegateOpen, setDelegateOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
@@ -80,11 +83,14 @@ export function TaskRow({
   const isClosed = task.status === "completed" || task.status === "canceled";
   const isWaiting = task.status === "waiting";
   const isBlocked = task.status === "blocked";
+  const isDelegated = task.status === "delegated";
   // "Poner en espera" y "Bloquear" están disponibles en cualquier tarea activa
   // ya procesada (no en Inbox, que aún no se decide, ni en cerradas, en espera
   // o ya bloqueada).
   const canPause =
     !isClosed && !isWaiting && !isBlocked && task.status !== "inbox";
+  // Delegar: cualquier tarea activa procesada que no esté ya delegada (§14).
+  const canDelegate = !isClosed && !isDelegated && task.status !== "inbox";
   const statusLabel =
     task.status === "planned"
       ? BUCKET_LABEL[bucket]
@@ -93,12 +99,12 @@ export function TaskRow({
   const effectLabel = task.energy_effect
     ? ENERGY_EFFECT_LABEL[task.energy_effect]
     : null;
-  const reviewFmt = task.review_at
-    ? new Intl.DateTimeFormat("es-DO", {
-        day: "numeric",
-        month: "short",
-      }).format(new Date(task.review_at + "T12:00:00"))
-    : null;
+  const fmtDay = (d: string) =>
+    new Intl.DateTimeFormat("es-DO", {
+      day: "numeric",
+      month: "short",
+    }).format(new Date(d + "T12:00:00"));
+  const reviewFmt = task.review_at ? fmtDay(task.review_at) : null;
 
   // Portada mínima: se muestra un solo dato relevante (estado con fecha, o la
   // fecha de captura). Todo lo demás va al detalle plegable. primaryIsCapture
@@ -106,6 +112,7 @@ export function TaskRow({
   const showsStatusChip =
     isWaiting ||
     isBlocked ||
+    isDelegated ||
     task.status === "planned" ||
     !!execDate ||
     task.attend_today;
@@ -152,6 +159,21 @@ export function TaskRow({
       label: "Reprogramada",
       value: `${task.reschedule_count} ${task.reschedule_count === 1 ? "vez" : "veces"}`,
     });
+  if (task.delegation) {
+    const dg = task.delegation;
+    if (dg.assignee_name)
+      detailRows.push({ label: "Responsable", value: dg.assignee_name });
+    if (dg.delivery_deadline)
+      detailRows.push({
+        label: "Entrega",
+        value: fmtDay(dg.delivery_deadline),
+      });
+    if (dg.follow_up_at)
+      detailRows.push({ label: "Seguimiento", value: fmtDay(dg.follow_up_at) });
+    if (dg.instructions)
+      detailRows.push({ label: "Instrucciones", value: dg.instructions });
+    if (dg.notes) detailRows.push({ label: "Notas", value: dg.notes });
+  }
   const hasDetail = detailRows.length > 0 || steps.length > 0;
 
   // Reanudar (En espera) o Desbloquear (Bloqueadas): ambas vuelven a Por
@@ -291,6 +313,16 @@ export function TaskRow({
         style={{ background: "var(--color-clay)" }}
       />
       Bloqueada
+    </span>
+  ) : isDelegated ? (
+    <span className="bg-moss-50 text-moss-800 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+      <span
+        className="size-1.5 rounded-full"
+        style={{ background: "var(--color-moss-600)" }}
+      />
+      {task.delegation
+        ? DELEGATION_STATUS_LABEL[task.delegation.delegation_status]
+        : "Delegada"}
     </span>
   ) : task.status === "planned" || execDate ? (
     <span
@@ -457,6 +489,17 @@ export function TaskRow({
           </button>
         ) : null}
 
+        {isDelegated ? (
+          <button
+            type="button"
+            onClick={() => setDelegateOpen(true)}
+            disabled={pending}
+            className="bg-moss-700 text-paper hover:bg-moss-800 shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
+          >
+            Gestionar
+          </button>
+        ) : null}
+
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
@@ -580,6 +623,19 @@ export function TaskRow({
                 Bloquear
               </button>
             ) : null}
+            {canDelegate ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setDelegateOpen(true);
+                }}
+                className="text-ink hover:bg-paper-2 block w-full px-4 py-2.5 text-left text-sm"
+              >
+                Delegar
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"
@@ -621,6 +677,14 @@ export function TaskRow({
           task={task}
           open={blockOpen}
           onClose={() => setBlockOpen(false)}
+        />
+      ) : null}
+
+      {canDelegate || isDelegated ? (
+        <DelegateSheet
+          task={task}
+          open={delegateOpen}
+          onClose={() => setDelegateOpen(false)}
         />
       ) : null}
     </li>

@@ -8,6 +8,11 @@ import { PILLAR_SLUGS } from "@/features/pillars/pillars";
 import { CONTEXT_SLUGS } from "./contexts";
 import { nextOccurrence, type FrequencyType } from "./recurrence";
 import { sdDateString } from "./dates";
+import {
+  DELEGATION_STATUSES,
+  requiresAssignee,
+  type DelegationStatus,
+} from "./delegations";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -390,6 +395,19 @@ export async function processTask(
     metadata: { route: parsed.data.route },
   });
 
+  // Ruta Delegar (§14.1): entra en Delegadas con estado inicial "Por delegar",
+  // aún sin responsable. No pisa una delegación existente.
+  if (parsed.data.route === "delegar") {
+    await supabase.from("task_delegations").upsert(
+      {
+        task_id: parsed.data.id,
+        user_id: user.id,
+        delegation_status: "por_delegar",
+      },
+      { onConflict: "task_id", ignoreDuplicates: true },
+    );
+  }
+
   revalidatePath("/");
   revalidatePath("/tareas");
   return { ok: true, message: null };
@@ -735,6 +753,156 @@ export async function resumeTask(id: string): Promise<void> {
 
   revalidatePath("/");
   revalidatePath("/tareas");
+}
+
+// Delegar / gestionar delegación (Flujo v2.0 §14). El responsable es texto
+// libre (CRM futuro). "Delegada" y estados posteriores exigen responsable.
+// Al fijar una fecha de seguimiento se crea/actualiza una tarea vinculada.
+const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+const delegateSchema = z.object({
+  id: z.string().uuid(),
+  assignee_name: z.string().trim().max(200).nullable().optional(),
+  delegation_status: z.enum(
+    DELEGATION_STATUSES as [DelegationStatus, ...DelegationStatus[]],
+  ),
+  notify_at: z.string().regex(dateRe).nullable().optional(),
+  instructions: z.string().trim().max(2000).nullable().optional(),
+  delivery_deadline: z.string().regex(dateRe).nullable().optional(),
+  follow_up_at: z.string().regex(dateRe).nullable().optional(),
+  expected_evidence: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+export type DelegateInput = {
+  assignee_name?: string | null;
+  delegation_status: DelegationStatus;
+  notify_at?: string | null;
+  instructions?: string | null;
+  delivery_deadline?: string | null;
+  follow_up_at?: string | null;
+  expected_evidence?: string | null;
+  notes?: string | null;
+};
+
+export type DelegateResult = { ok: boolean; message: string | null };
+
+export async function delegateTask(
+  id: string,
+  input: DelegateInput,
+): Promise<DelegateResult> {
+  const parsed = delegateSchema.safeParse({ id, ...input });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Revisa los datos.",
+    };
+  }
+  const d = parsed.data;
+  const assignee = d.assignee_name?.trim() || null;
+  if (requiresAssignee(d.delegation_status) && !assignee) {
+    return {
+      ok: false,
+      message: "Para marcarla como delegada necesitas un responsable.",
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) return { ok: false, message: "Tu sesión expiró." };
+
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("title, pillar, status")
+    .eq("id", d.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!task) return { ok: false, message: "No se encontró la tarea." };
+
+  const { data: existing } = await supabase
+    .from("task_delegations")
+    .select("follow_up_task_id")
+    .eq("task_id", d.id)
+    .maybeSingle();
+
+  // La tarea principal pasa a Delegadas y deja de estar agendada para mí.
+  await supabase
+    .from("tasks")
+    .update({ status: "delegated", execution_date: null, attend_today: false })
+    .eq("id", d.id)
+    .is("deleted_at", null);
+
+  // Upsert del detalle (sin tocar follow_up_task_id, que se gestiona abajo).
+  const { error: delErr } = await supabase.from("task_delegations").upsert(
+    {
+      task_id: d.id,
+      user_id: user.id,
+      assignee_name: assignee,
+      delegation_status: d.delegation_status,
+      notify_at: d.notify_at ?? null,
+      instructions: d.instructions?.trim() || null,
+      delivery_deadline: d.delivery_deadline ?? null,
+      follow_up_at: d.follow_up_at ?? null,
+      expected_evidence: d.expected_evidence?.trim() || null,
+      notes: d.notes?.trim() || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "task_id" },
+  );
+  if (delErr) {
+    return { ok: false, message: "No se pudo guardar la delegación." };
+  }
+
+  // Tarea de seguimiento vinculada (§14.4): crear/actualizar sin duplicar.
+  const followId = existing?.follow_up_task_id ?? null;
+  if (d.follow_up_at) {
+    if (followId) {
+      await supabase
+        .from("tasks")
+        .update({
+          status: "planned",
+          execution_date: d.follow_up_at,
+          deleted_at: null,
+        })
+        .eq("id", followId);
+    } else {
+      const { data: created } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: user.id,
+          title: `Dar seguimiento a: ${task.title}`,
+          type: "operativa",
+          status: "planned",
+          pillar: task.pillar,
+          execution_date: d.follow_up_at,
+          is_recurring: false,
+        })
+        .select("id")
+        .maybeSingle();
+      if (created) {
+        await supabase
+          .from("task_delegations")
+          .update({ follow_up_task_id: created.id })
+          .eq("task_id", d.id);
+      }
+    }
+  } else if (followId) {
+    // Se quitó la fecha de seguimiento: se cierra la tarea vinculada.
+    await supabase
+      .from("tasks")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", followId);
+    await supabase
+      .from("task_delegations")
+      .update({ follow_up_task_id: null })
+      .eq("task_id", d.id);
+  }
+
+  await logHistory(supabase, user.id, d.id, "delegated", {
+    metadata: { status: d.delegation_status, assignee },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/tareas");
+  return { ok: true, message: null };
 }
 
 export async function deleteTask(id: string): Promise<void> {
