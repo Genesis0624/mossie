@@ -70,7 +70,7 @@ export default async function HomePage() {
       <p className="text-ink-mute text-xs tracking-[0.2em] uppercase">
         {fecha}
       </p>
-      <h1 className="font-editorial text-moss-800 mt-2 text-3xl">
+      <h1 className="font-editorial text-moss-800 mt-2 text-3xl lg:text-4xl">
         {nombre ? `Hola, ${nombre}` : "Hola"}
       </h1>
       <p className="font-editorial text-ink-soft mt-3 text-lg italic">
@@ -84,7 +84,7 @@ export default async function HomePage() {
             ? `Procesar Inbox: ${inbox} ${inbox === 1 ? "tarea" : "tareas"} por procesar`
             : "Abrir Inbox, sin pendientes"
         }
-        className={`mt-8 flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors ${
+        className={`mt-8 flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors lg:max-w-md ${
           inbox > 0
             ? "border-moss-300 bg-moss-50 hover:bg-moss-100"
             : "border-line bg-paper-2 hover:bg-paper"
@@ -140,67 +140,77 @@ export default async function HomePage() {
         )}
       </Link>
 
-      <section className="mt-10">
-        <h2 className="text-ink text-base font-medium">Hoy</h2>
-        {hoy.length === 0 ? (
-          <p className="text-ink-mute mt-2 text-sm">
-            Nada agendado para hoy. Planifica tus tareas de Por planificar y las
-            de hoy aparecerán aquí.
-          </p>
-        ) : (
-          <ul className="mt-4 flex flex-col gap-3">
-            {hoy.map((task) => (
-              <TaskRow key={task.id} task={task} canPlan />
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Escritorio: Hoy dominante a la izquierda, lateral a la derecha.
+          Móvil: columna única con el mismo orden (Hoy·Vencidas·Mañana·Exprés). */}
+      <div className="mt-10 lg:mt-12 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
+        {/* Columna dominante */}
+        <div className="flex flex-col gap-8">
+          <section>
+            <h2 className="text-ink text-base font-medium">Hoy</h2>
+            {hoy.length === 0 ? (
+              <p className="text-ink-mute mt-2 text-sm">
+                Nada agendado para hoy. Planifica tus tareas de Por planificar y
+                las de hoy aparecerán aquí.
+              </p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-3">
+                {hoy.map((task) => (
+                  <TaskRow key={task.id} task={task} canPlan />
+                ))}
+              </ul>
+            )}
+          </section>
 
-      {vencidas.length > 0 ? (
-        <section className="mt-8">
-          <h2 className="text-ink text-base font-medium">Vencidas</h2>
-          <p className="text-ink-mute mt-1 text-sm">
-            Sin culpa: decide si van para hoy, otra fecha o ya no.
-          </p>
-          <ul className="mt-4 flex flex-col gap-3">
-            {vencidas.map((task) => (
-              <TaskRow key={task.id} task={task} canPlan />
-            ))}
-          </ul>
-        </section>
-      ) : null}
+          {vencidas.length > 0 ? (
+            <section>
+              <h2 className="text-ink text-base font-medium">Vencidas</h2>
+              <p className="text-ink-mute mt-1 text-sm">
+                Sin culpa: decide si van para hoy, otra fecha o ya no.
+              </p>
+              <ul className="mt-4 flex flex-col gap-3">
+                {vencidas.map((task) => (
+                  <TaskRow key={task.id} task={task} canPlan />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
 
-      <section className="mt-8">
-        <h2 className="text-ink text-base font-medium">Preparar mañana</h2>
-        {manana.length === 0 ? (
-          <p className="text-ink-mute mt-2 text-sm">
-            Nada para mañana todavía. Lo que planifiques para mañana aparecerá
-            aquí para que prepares lo necesario.
-          </p>
-        ) : (
-          <ul className="mt-4 flex flex-col gap-3">
-            {manana.map((task) => (
-              <TaskRow key={task.id} task={task} canPlan />
-            ))}
-          </ul>
-        )}
-      </section>
+        {/* Columna lateral */}
+        <div className="mt-8 flex flex-col gap-8 lg:mt-0">
+          <section>
+            <h2 className="text-ink text-base font-medium">Preparar mañana</h2>
+            {manana.length === 0 ? (
+              <p className="text-ink-mute mt-2 text-sm">
+                Nada para mañana todavía. Lo que planifiques para mañana
+                aparecerá aquí para que prepares lo necesario.
+              </p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-3">
+                {manana.map((task) => (
+                  <TaskRow key={task.id} task={task} canPlan />
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section className="mt-8">
-        <h2 className="text-ink text-base font-medium">Tareas exprés</h2>
-        {express.length === 0 ? (
-          <p className="text-ink-mute mt-2 text-sm">
-            Nada exprés por ahora. Lo que captures como exprés aparecerá aquí
-            para atenderlo en el momento.
-          </p>
-        ) : (
-          <ul className="mt-4 flex flex-col gap-3">
-            {express.map((task) => (
-              <TaskRow key={task.id} task={task} />
-            ))}
-          </ul>
-        )}
-      </section>
+          <section>
+            <h2 className="text-ink text-base font-medium">Tareas exprés</h2>
+            {express.length === 0 ? (
+              <p className="text-ink-mute mt-2 text-sm">
+                Nada exprés por ahora. Lo que captures como exprés aparecerá
+                aquí para atenderlo en el momento.
+              </p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-3">
+                {express.map((task) => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
   );
 }

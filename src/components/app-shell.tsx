@@ -64,37 +64,85 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [captureOpen, setCaptureOpen] = useState(false);
 
-  const linkFor = (item: NavItem) => {
-    const active =
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        aria-current={active ? "page" : undefined}
-        className={`flex min-h-[44px] flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-          active ? "text-moss-700" : "text-ink-mute hover:text-ink-soft"
-        }`}
-      >
-        {item.icon}
-        <span>{item.label}</span>
-      </Link>
-    );
-  };
+  const isActive = (item: NavItem) =>
+    item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+
+  // Barra inferior (móvil): acceso vertical compacto.
+  const tabFor = (item: NavItem) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={isActive(item) ? "page" : undefined}
+      className={`flex min-h-[44px] flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
+        isActive(item) ? "text-moss-700" : "text-ink-mute hover:text-ink-soft"
+      }`}
+    >
+      {item.icon}
+      <span>{item.label}</span>
+    </Link>
+  );
+
+  // Barra lateral (escritorio): fila con icono + etiqueta, activo moss-50 (Doc 24).
+  const sideLinkFor = (item: NavItem) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={isActive(item) ? "page" : undefined}
+      className={`flex min-h-[44px] items-center gap-3 rounded-md px-3 text-sm transition-colors ${
+        isActive(item)
+          ? "bg-moss-50 text-moss-700 font-medium"
+          : "text-ink-soft hover:bg-paper hover:text-ink"
+      }`}
+    >
+      <span aria-hidden="true">{item.icon}</span>
+      <span>{item.label}</span>
+    </Link>
+  );
 
   const [inicio, inbox, ideas, perfil] = items;
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      <div className="flex-1 pb-24">{children}</div>
+    <div className="flex min-h-full w-full flex-col lg:flex-row">
+      {/* Barra lateral — solo escritorio (Doc 24 §8: sidebar + FAB) */}
+      <aside className="border-line bg-paper-2 sticky top-0 z-20 hidden h-screen w-60 shrink-0 flex-col border-r px-4 py-6 lg:flex">
+        <Link href="/" className="px-3">
+          <span className="font-editorial text-moss-800 block text-xl">
+            Mossie
+          </span>
+          <span className="font-editorial text-ink-mute mt-0.5 block text-xs italic">
+            El musgo no compite, cubre.
+          </span>
+        </Link>
 
-      <nav className="border-line bg-paper-2/95 fixed inset-x-0 bottom-0 z-10 border-t backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setCaptureOpen(true)}
+          className="bg-moss-700 text-paper mt-6 flex min-h-[44px] items-center justify-center gap-2 rounded-full px-4 text-sm font-medium shadow-[var(--shadow-sm)] transition-transform active:scale-95"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Capturar
+        </button>
+
+        <nav className="mt-6 flex flex-col gap-1">{items.map(sideLinkFor)}</nav>
+      </aside>
+
+      {/* Contenido — columna centrada en móvil, centro dominante en escritorio */}
+      <div className="flex w-full flex-1 flex-col">
+        <div className="mx-auto w-full max-w-md flex-1 pb-24 lg:max-w-5xl lg:pb-12">
+          {children}
+        </div>
+      </div>
+
+      {/* Barra inferior — solo móvil */}
+      <nav className="border-line bg-paper-2/95 fixed inset-x-0 bottom-0 z-10 border-t backdrop-blur lg:hidden">
         <div
           className="mx-auto flex w-full max-w-md items-center justify-around px-4"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
-          {linkFor(inicio)}
-          {linkFor(inbox)}
+          {tabFor(inicio)}
+          {tabFor(inbox)}
 
           <button
             type="button"
@@ -107,8 +155,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
 
-          {linkFor(ideas)}
-          {linkFor(perfil)}
+          {tabFor(ideas)}
+          {tabFor(perfil)}
         </div>
       </nav>
 
